@@ -9,28 +9,18 @@ import (
 	"github.com/sheenobu/go-xco"
 )
 
-type StaticConfig struct {
-	Xmpp StaticConfigXmpp `toml:"xmpp"`
-}
-
-type StaticConfigXmpp struct {
-	Host   string `toml:"host"`
-	Name   string `toml:"name"`
-	Port   int    `toml:"port"`
-	Secret string `toml:"secret"`
-}
-
 func main() {
-	config := new(StaticConfig)
+	var config Config
+	config = new(StaticConfig)
 	_, err := toml.DecodeFile(os.Args[1], &config)
 	if err != nil {
 		panic(err)
 	}
 
 	opts := xco.Options{
-		Name:         config.Xmpp.Name,
-		SharedSecret: config.Xmpp.Secret,
-		Address:      fmt.Sprintf("%s:%d", config.Xmpp.Host, config.Xmpp.Port),
+		Name:         config.ComponentName(),
+		SharedSecret: config.SharedSecret(),
+		Address:      fmt.Sprintf("%s:%d", config.XmppHost(), config.XmppPort()),
 	}
 	c, err := xco.NewComponent(opts)
 	if err != nil {
