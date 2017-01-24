@@ -10,13 +10,16 @@ import (
 )
 
 func main() {
-	var config Config
-	config = new(StaticConfig)
+	config := new(StaticConfig)
 	_, err := toml.DecodeFile(os.Args[1], &config)
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "can't read config file '%s': %s\n", os.Args[1], err)
+		os.Exit(1)
 	}
+	Main(config)
+}
 
+func Main(config Config) {
 	opts := xco.Options{
 		Name:         config.ComponentName(),
 		SharedSecret: config.SharedSecret(),
