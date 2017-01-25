@@ -1,23 +1,11 @@
-package main
+package sms // import "github.com/mndrix/sms-over-xmpp"
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
-	"github.com/BurntSushi/toml"
 	"github.com/sheenobu/go-xco"
 )
-
-func main() {
-	config := new(StaticConfig)
-	_, err := toml.DecodeFile(os.Args[1], &config)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "can't read config file '%s': %s\n", os.Args[1], err)
-		os.Exit(1)
-	}
-	Main(config)
-}
 
 func Main(config Config) {
 	opts := xco.Options{

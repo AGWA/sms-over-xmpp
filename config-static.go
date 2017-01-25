@@ -1,4 +1,4 @@
-package main
+package sms // import "github.com/mndrix/sms-over-xmpp"
 
 type StaticConfig struct {
 	Xmpp StaticConfigXmpp `toml:"xmpp"`

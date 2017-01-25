@@ -1,4 +1,4 @@
-package main
+package sms // import "github.com/mndrix/sms-over-xmpp"
 
 // Config describes the minimum methods necessary for configuring an
 // sms-over-xmpp component.  These are methods for which no sensible
