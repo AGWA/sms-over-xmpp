@@ -6,8 +6,8 @@ import (
 	"log"
 	"strings"
 
+	"github.com/mndrix/go-xco"
 	"github.com/pkg/errors"
-	"github.com/sheenobu/go-xco"
 )
 
 func Main(config Config) {
