@@ -23,5 +23,8 @@ func Main(config Config) {
 		return strings.ToUpper(msg.Body), nil
 	})
 
-	c.Run()
+	err = c.Run()
+	if err != nil {
+		log.Printf("ERROR: Run: %s", err)
+	}
 }
