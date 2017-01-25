@@ -28,18 +28,8 @@ func Main(config Config) {
 			log.Printf("  ignoring message with empty body")
 			return nil
 		}
-		resp := &xco.Message{
-			Header: xco.Header{
-				From: m.To,
-				To:   m.From,
-				ID:   m.ID,
-			},
-			Subject: m.Subject,
-			Thread:  m.Thread,
-			Type:    m.Type,
-			Body:    strings.ToUpper(m.Body),
-			XMLName: m.XMLName,
-		}
+		resp := m.Response()
+		resp.Body = strings.ToUpper(m.Body)
 		log.Printf("Responding: %+v", resp)
 		return errors.Wrap(c.Send(resp), "sending response")
 	}
