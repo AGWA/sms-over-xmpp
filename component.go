@@ -4,7 +4,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/mndrix/go-xco"
 	"github.com/pkg/errors"
@@ -33,6 +32,10 @@ func Main(config Config) {
 	}
 }
 
+// ErrIgnoreMessage should be returned to indicate that a message
+// should be ignored; as if it never happened.
+var ErrIgnoreMessage = errors.New("ignore this message")
+
 // Component represents an SMS-over-XMPP component
 type Component struct {
 	config Config
@@ -44,8 +47,31 @@ func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
 		log.Printf("  ignoring message with empty body")
 		return nil
 	}
+
+	// convert recipient address into a phone number
+	toPhone, err := sc.config.AddressToPhone(m.To)
+	switch err {
+	case nil:
+		// all is well. we'll continue below
+	case ErrIgnoreMessage:
+		return nil
+	default:
+		return errors.Wrap(err, "converting 'to' address to phone")
+	}
+
+	// convert author's address into a phone number
+	fromPhone, err := sc.config.AddressToPhone(m.From)
+	switch err {
+	case nil:
+		// all is well. we'll continue below
+	case ErrIgnoreMessage:
+		return nil
+	default:
+		return errors.Wrap(err, "converting 'from' address to phone")
+	}
+
 	resp := m.Response()
-	resp.Body = strings.ToUpper(m.Body)
+	resp.Body = fmt.Sprintf("From: %s\nTo: %s\nBody: %s", fromPhone, toPhone, m.Body)
 	log.Printf("Responding: %+v", resp)
 
 	return errors.Wrap(c.Send(resp), "sending response")

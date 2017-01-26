@@ -1,7 +1,12 @@
 package sms // import "github.com/mndrix/sms-over-xmpp"
+import xco "github.com/mndrix/go-xco"
 
 type StaticConfig struct {
 	Xmpp StaticConfigXmpp `toml:"xmpp"`
+
+	// Users maps the local part of an XMPP address to the
+	// corresponding E.164 phone number.
+	Users map[string]string `toml:"users"`
 }
 
 type StaticConfigXmpp struct {
@@ -25,4 +30,13 @@ func (self *StaticConfig) XmppHost() string {
 
 func (self *StaticConfig) XmppPort() int {
 	return self.Xmpp.Port
+}
+
+func (self *StaticConfig) AddressToPhone(addr xco.Address) (string, error) {
+	e164, ok := self.Users[addr.LocalPart]
+	if ok {
+		return e164, nil
+	}
+
+	return addr.LocalPart, nil
 }
