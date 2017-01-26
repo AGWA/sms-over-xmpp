@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/mndrix/go-xco"
 	"github.com/pkg/errors"
@@ -14,6 +15,7 @@ func Main(config Config) {
 		Name:         config.ComponentName(),
 		SharedSecret: config.SharedSecret(),
 		Address:      fmt.Sprintf("%s:%d", config.XmppHost(), config.XmppPort()),
+		Logger:       log.New(os.Stderr, "", log.LstdFlags),
 	}
 	c, err := xco.NewComponent(opts)
 	if err != nil {
