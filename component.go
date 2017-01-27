@@ -11,6 +11,16 @@ import (
 )
 
 func Main(config Config) {
+	xmppErr := make(chan error)
+	go runXmppComponent(config, xmppErr)
+
+	select {
+	case err := <-xmppErr:
+		log.Printf("ERROR XMPP: %s", err)
+	}
+}
+
+func runXmppComponent(config Config, errCh chan<- error) {
 	opts := xco.Options{
 		Name:         config.ComponentName(),
 		SharedSecret: config.SharedSecret(),
@@ -28,10 +38,8 @@ func Main(config Config) {
 	c.IqHandler = sc.onIq
 	c.UnknownHandler = sc.onUnknown
 
-	err = c.Run()
-	if err != nil {
-		log.Printf("ERROR: Run: %s", err)
-	}
+	errCh <- c.Run()
+	close(errCh)
 }
 
 // ErrIgnoreMessage should be returned to indicate that a message
