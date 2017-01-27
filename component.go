@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	xco "github.com/mndrix/go-xco"
@@ -14,10 +15,25 @@ func Main(config Config) {
 	xmppErr := make(chan error)
 	go runXmppComponent(config, xmppErr)
 
+	httpErr := make(chan error)
+	go runHttpServer(config, httpErr)
+
 	select {
+	case err := <-httpErr:
+		log.Printf("ERROR HTTP: %s", err)
 	case err := <-xmppErr:
 		log.Printf("ERROR XMPP: %s", err)
 	}
+}
+
+func runHttpServer(config Config, errCh chan<- error) {
+	addr := fmt.Sprintf("%s:%d", config.HttpHost(), config.HttpPort())
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%s %s", r.Method, r.URL.Path)
+		fmt.Fprintln(w, "sms-over-xmpp says hi")
+	})
+	errCh <- http.ListenAndServe(addr, handler)
+	close(errCh)
 }
 
 func runXmppComponent(config Config, errCh chan<- error) {

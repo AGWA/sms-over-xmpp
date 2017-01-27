@@ -18,6 +18,14 @@ type Config interface {
 	// XMPP server knows us.
 	ComponentName() string
 
+	// HttpHost is the host address on which to listen for HTTP
+	// connections.  If its the empty string, listen on all available
+	// interfaces.
+	HttpHost() string
+
+	// HttpPort is the port on which to listen for HTTP connections.
+	HttpPort() int
+
 	// SharedSecret is the secret with which we can authenticate to
 	// the XMPP server.
 	SharedSecret() string

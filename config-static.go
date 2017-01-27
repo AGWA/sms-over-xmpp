@@ -5,7 +5,12 @@ import (
 	xco "github.com/mndrix/go-xco"
 )
 
+// StaticConfig intends to implement the Config interface
+var _ Config = &StaticConfig{}
+
 type StaticConfig struct {
+	Http HttpConfig `toml:"http"`
+
 	Xmpp StaticConfigXmpp `toml:"xmpp"`
 
 	// Users maps the local part of an XMPP address to the
@@ -15,6 +20,11 @@ type StaticConfig struct {
 	// Twilio contains optional account details for making API calls via the
 	// Twilio service.
 	Twilio *TwilioConfig `toml:"twilio"`
+}
+
+type HttpConfig struct {
+	Host string `toml:"host"`
+	Port int    `toml:"port"`
 }
 
 type StaticConfigXmpp struct {
@@ -35,6 +45,18 @@ func (self *StaticConfig) ComponentName() string {
 
 func (self *StaticConfig) SharedSecret() string {
 	return self.Xmpp.Secret
+}
+
+func (self *StaticConfig) HttpHost() string {
+	return self.Http.Host
+}
+
+func (self *StaticConfig) HttpPort() int {
+	port := self.Http.Port
+	if port == 0 {
+		port = 9677
+	}
+	return port
 }
 
 func (self *StaticConfig) XmppHost() string {
