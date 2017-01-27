@@ -22,6 +22,10 @@ type Config interface {
 	// the XMPP server.
 	SharedSecret() string
 
+	// SmsProvider returns a provider that's able to send and receive
+	// SMS messages to and from the numbers indicated.
+	SmsProvider(from string, to string) (SmsProvider, error)
+
 	// XmppHost is the domain name or IP address of the XMPP server.
 	XmppHost() string
 

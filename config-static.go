@@ -1,5 +1,9 @@
 package sms // import "github.com/mndrix/sms-over-xmpp"
-import xco "github.com/mndrix/go-xco"
+import (
+	"errors"
+
+	xco "github.com/mndrix/go-xco"
+)
 
 type StaticConfig struct {
 	Xmpp StaticConfigXmpp `toml:"xmpp"`
@@ -7,6 +11,10 @@ type StaticConfig struct {
 	// Users maps the local part of an XMPP address to the
 	// corresponding E.164 phone number.
 	Users map[string]string `toml:"users"`
+
+	// Twilio contains optional account details for making API calls via the
+	// Twilio service.
+	Twilio *TwilioConfig `toml:"twilio"`
 }
 
 type StaticConfigXmpp struct {
@@ -14,6 +22,11 @@ type StaticConfigXmpp struct {
 	Name   string `toml:"name"`
 	Port   int    `toml:"port"`
 	Secret string `toml:"secret"`
+}
+
+type TwilioConfig struct {
+	AccountSid string `toml:"sid"`
+	AuthToken  string `toml:"token"`
 }
 
 func (self *StaticConfig) ComponentName() string {
@@ -39,4 +52,15 @@ func (self *StaticConfig) AddressToPhone(addr xco.Address) (string, error) {
 	}
 
 	return addr.LocalPart, nil
+}
+
+func (self *StaticConfig) SmsProvider(from, to string) (SmsProvider, error) {
+	if self.Twilio == nil {
+		return nil, errors.New("Need to configure an SMS provider")
+	}
+	twilio := &Twilio{
+		accountSid: self.Twilio.AccountSid,
+		authToken:  self.Twilio.AuthToken,
+	}
+	return twilio, nil
 }

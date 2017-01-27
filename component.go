@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/mndrix/go-xco"
+	xco "github.com/mndrix/go-xco"
 	"github.com/pkg/errors"
 )
 
@@ -72,11 +72,20 @@ func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
 		return errors.Wrap(err, "converting 'from' address to phone")
 	}
 
-	resp := m.Response()
-	resp.Body = fmt.Sprintf("From: %s\nTo: %s\nBody: %s", fromPhone, toPhone, m.Body)
-	log.Printf("Responding: %+v", resp)
+	// choose an SMS provider
+	provider, err := sc.config.SmsProvider(fromPhone, toPhone)
+	switch err {
+	case nil:
+		// all is well. we'll continue below
+	case ErrIgnoreMessage:
+		return nil
+	default:
+		return errors.Wrap(err, "choosing an SMS provider")
+	}
 
-	return errors.Wrap(c.Send(resp), "sending response")
+	// send the message
+	err = provider.SendSms(fromPhone, toPhone, m.Body)
+	return errors.Wrap(err, "sending SMS")
 }
 
 func (sc *Component) onPresence(c *xco.Component, p *xco.Presence) error {
