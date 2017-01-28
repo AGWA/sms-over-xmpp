@@ -35,8 +35,9 @@ type StaticConfigXmpp struct {
 }
 
 type TwilioConfig struct {
-	AccountSid string `toml:"sid"`
-	AuthToken  string `toml:"token"`
+	AccountSid string `toml:"account-sid"`
+	KeySid     string `toml:"key-sid"`
+	KeySecret  string `toml:"key-secret"`
 }
 
 func (self *StaticConfig) ComponentName() string {
@@ -82,7 +83,8 @@ func (self *StaticConfig) SmsProvider(from, to string) (SmsProvider, error) {
 	}
 	twilio := &Twilio{
 		accountSid: self.Twilio.AccountSid,
-		authToken:  self.Twilio.AuthToken,
+		keySid:     self.Twilio.KeySid,
+		keySecret:  self.Twilio.KeySecret,
 	}
 	return twilio, nil
 }

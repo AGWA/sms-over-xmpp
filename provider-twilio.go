@@ -14,7 +14,8 @@ import (
 // Twilio.
 type Twilio struct {
 	accountSid string
-	authToken  string
+	keySid     string
+	keySecret  string
 
 	client *http.Client
 }
@@ -46,7 +47,7 @@ func (t *Twilio) do(service string, form url.Values) error {
 		return errors.Wrap(err, "building HTTP request")
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(t.accountSid, t.authToken)
+	req.SetBasicAuth(t.keySid, t.keySecret)
 
 	res, err := t.httpClient().Do(req)
 	if err != nil {
