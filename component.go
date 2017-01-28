@@ -23,11 +23,14 @@ type Component struct {
 func Main(config Config) {
 	sc := &Component{config}
 
-	xmppErr := make(chan error)
-	go sc.runXmppComponent(xmppErr)
+	// start goroutine for handling XMPP
+	xmppErr, err := sc.runXmppComponent()
+	if err != nil {
+		panic(err)
+	}
 
-	httpErr := make(chan error)
-	go sc.runHttpServer(httpErr)
+	// start goroutine for handling HTTP
+	httpErr := sc.runHttpServer()
 
 	select {
 	case err := <-httpErr:
@@ -37,14 +40,18 @@ func Main(config Config) {
 	}
 }
 
-func (sc *Component) runHttpServer(errCh chan<- error) {
+func (sc *Component) runHttpServer() <-chan error {
 	config := sc.config
 	addr := fmt.Sprintf("%s:%d", config.HttpHost(), config.HttpPort())
-	errCh <- http.ListenAndServe(addr, sc)
-	close(errCh)
+	errCh := make(chan error)
+	go func() {
+		errCh <- http.ListenAndServe(addr, sc)
+		close(errCh)
+	}()
+	return errCh
 }
 
-func (sc *Component) runXmppComponent(errCh chan<- error) {
+func (sc *Component) runXmppComponent() (<-chan error, error) {
 	config := sc.config
 	opts := xco.Options{
 		Name:         config.ComponentName(),
@@ -54,7 +61,7 @@ func (sc *Component) runXmppComponent(errCh chan<- error) {
 	}
 	c, err := xco.NewComponent(opts)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	c.MessageHandler = sc.onMessage
@@ -62,8 +69,12 @@ func (sc *Component) runXmppComponent(errCh chan<- error) {
 	c.IqHandler = sc.onIq
 	c.UnknownHandler = sc.onUnknown
 
-	errCh <- c.Run()
-	close(errCh)
+	errCh := make(chan error)
+	go func() {
+		errCh <- c.Run()
+		close(errCh)
+	}()
+	return errCh, nil
 }
 
 func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
