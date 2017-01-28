@@ -11,6 +11,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ErrIgnoreMessage should be returned to indicate that a message
+// should be ignored; as if it never happened.
+var ErrIgnoreMessage = errors.New("ignore this message")
+
+// Component represents an SMS-over-XMPP component
+type Component struct {
+	config Config
+}
+
 func Main(config Config) {
 	sc := &Component{config}
 
@@ -55,15 +64,6 @@ func (sc *Component) runXmppComponent(errCh chan<- error) {
 
 	errCh <- c.Run()
 	close(errCh)
-}
-
-// ErrIgnoreMessage should be returned to indicate that a message
-// should be ignored; as if it never happened.
-var ErrIgnoreMessage = errors.New("ignore this message")
-
-// Component represents an SMS-over-XMPP component
-type Component struct {
-	config Config
 }
 
 func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
