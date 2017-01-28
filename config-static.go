@@ -103,7 +103,7 @@ func (self *StaticConfig) PhoneToAddress(e164 string) (xco.Address, error) {
 	return addr, nil
 }
 
-func (self *StaticConfig) SmsProvider(from, to string) (SmsProvider, error) {
+func (self *StaticConfig) SmsProvider() (SmsProvider, error) {
 	if self.Twilio == nil {
 		return nil, errors.New("Need to configure an SMS provider")
 	}

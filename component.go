@@ -135,7 +135,7 @@ func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
 	}
 
 	// choose an SMS provider
-	provider, err := sc.config.SmsProvider(fromPhone, toPhone)
+	provider, err := sc.config.SmsProvider()
 	switch err {
 	case nil:
 		// all is well. we'll continue below
