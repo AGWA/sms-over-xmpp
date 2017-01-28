@@ -31,66 +31,7 @@ func Main(config Config) {
 func (sc *Component) runHttpServer(errCh chan<- error) {
 	config := sc.config
 	addr := fmt.Sprintf("%s:%d", config.HttpHost(), config.HttpPort())
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		msgSid := r.FormValue("MessageSid")
-		log.Printf("%s %s (%s)", r.Method, r.URL.Path, msgSid)
-
-		// which SMS provider is applicable?
-		provider, err := config.SmsProvider()
-		switch err {
-		case nil:
-			// all is well. we'll continue below
-		case ErrIgnoreMessage:
-			msg := "ignored during provider selection"
-			log.Println(msg)
-			return
-		default:
-			msg := fmt.Sprintf("ERROR: choosing an SMS provider: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintln(w, msg)
-			log.Println(msg)
-			return
-		}
-
-		fromPhone, toPhone, body, err := provider.ReceiveSms(r)
-
-		// convert author's phone number into XMPP address
-		from, err := config.PhoneToAddress(fromPhone)
-		switch err {
-		case nil:
-			// all is well. proceed
-		case ErrIgnoreMessage:
-			msg := "ignored based on From address"
-			log.Println(msg)
-			return
-		default:
-			msg := fmt.Sprintf("ERROR: From address %s: %s", fromPhone, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintln(w, msg)
-			log.Println(msg)
-			return
-		}
-
-		// convert recipient's phone number into XMPP address
-		to, err := config.PhoneToAddress(toPhone)
-		switch err {
-		case nil:
-			// all is well. proceed
-		case ErrIgnoreMessage:
-			msg := "ignored based on To address"
-			log.Println(msg)
-			return
-		default:
-			msg := fmt.Sprintf("ERROR: To address %s: %s", toPhone, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintln(w, msg)
-			log.Println(msg)
-			return
-		}
-
-		log.Printf("would have sent (%s -> %s): %s", &from, &to, body)
-	})
-	errCh <- http.ListenAndServe(addr, handler)
+	errCh <- http.ListenAndServe(addr, sc)
 	close(errCh)
 }
 
@@ -183,4 +124,64 @@ func (sc *Component) onIq(c *xco.Component, iq *xco.Iq) error {
 func (sc *Component) onUnknown(c *xco.Component, x *xml.StartElement) error {
 	log.Printf("Unknown: %+v", x)
 	return nil
+}
+
+func (sc *Component) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	msgSid := r.FormValue("MessageSid")
+	log.Printf("%s %s (%s)", r.Method, r.URL.Path, msgSid)
+
+	// which SMS provider is applicable?
+	provider, err := sc.config.SmsProvider()
+	switch err {
+	case nil:
+		// all is well. we'll continue below
+	case ErrIgnoreMessage:
+		msg := "ignored during provider selection"
+		log.Println(msg)
+		return
+	default:
+		msg := fmt.Sprintf("ERROR: choosing an SMS provider: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, msg)
+		log.Println(msg)
+		return
+	}
+
+	fromPhone, toPhone, body, err := provider.ReceiveSms(r)
+
+	// convert author's phone number into XMPP address
+	from, err := sc.config.PhoneToAddress(fromPhone)
+	switch err {
+	case nil:
+		// all is well. proceed
+	case ErrIgnoreMessage:
+		msg := "ignored based on From address"
+		log.Println(msg)
+		return
+	default:
+		msg := fmt.Sprintf("ERROR: From address %s: %s", fromPhone, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, msg)
+		log.Println(msg)
+		return
+	}
+
+	// convert recipient's phone number into XMPP address
+	to, err := sc.config.PhoneToAddress(toPhone)
+	switch err {
+	case nil:
+		// all is well. proceed
+	case ErrIgnoreMessage:
+		msg := "ignored based on To address"
+		log.Println(msg)
+		return
+	default:
+		msg := fmt.Sprintf("ERROR: To address %s: %s", toPhone, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, msg)
+		log.Println(msg)
+		return
+	}
+
+	log.Printf("would have sent (%s -> %s): %s", &from, &to, body)
 }
