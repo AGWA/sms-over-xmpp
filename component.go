@@ -1,11 +1,14 @@
 package sms // import "github.com/mndrix/sms-over-xmpp"
 
 import (
+	"crypto/rand"
+	"encoding/base32"
 	"encoding/xml"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	xco "github.com/mndrix/go-xco"
 	"github.com/pkg/errors"
@@ -18,10 +21,14 @@ var ErrIgnoreMessage = errors.New("ignore this message")
 // Component represents an SMS-over-XMPP component
 type Component struct {
 	config Config
+
+	// xmpp is the XMPP component which handles all interactions
+	// with an XMPP server.
+	xmpp *xco.Component
 }
 
 func Main(config Config) {
-	sc := &Component{config}
+	sc := &Component{config: config}
 
 	// start goroutine for handling XMPP
 	xmppErr, err := sc.runXmppComponent()
@@ -68,6 +75,7 @@ func (sc *Component) runXmppComponent() (<-chan error, error) {
 	c.PresenceHandler = sc.onPresence
 	c.IqHandler = sc.onIq
 	c.UnknownHandler = sc.onUnknown
+	sc.xmpp = c
 
 	errCh := make(chan error)
 	go func() {
@@ -194,5 +202,38 @@ func (sc *Component) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("would have sent (%s -> %s): %s", &from, &to, body)
+	// deliver message over XMPP
+	msg := &xco.Message{
+		XMLName: xml.Name{
+			Local: "message",
+			Space: "jabber:component:accept",
+		},
+
+		Header: xco.Header{
+			From: from,
+			To:   to,
+			ID:   NewId(),
+		},
+		Type: "chat",
+		Body: body,
+	}
+	err = sc.xmpp.Send(msg)
+	if err != nil {
+		log.Printf("ERROR: can't send message: %s", err)
+	}
+}
+
+// NewId generates a random string which is suitable as an XMPP stanza
+// ID.  The string contains enough entropy to be universally unique.
+func NewId() string {
+	// generate 128 random bits (6 more than standard UUID)
+	bytes := make([]byte, 16)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		panic(err)
+	}
+
+	// convert them to base 32 encoding
+	s := base32.StdEncoding.EncodeToString(bytes)
+	return strings.ToLower(strings.TrimRight(s, "="))
 }
