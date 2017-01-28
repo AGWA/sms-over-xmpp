@@ -13,8 +13,7 @@ type StaticConfig struct {
 
 	Xmpp StaticConfigXmpp `toml:"xmpp"`
 
-	// Users maps the local part of an XMPP address to the
-	// corresponding E.164 phone number.
+	// Users maps an XMPP address to an E.164 phone number.
 	Users map[string]string `toml:"users"`
 
 	// Twilio contains optional account details for making API calls via the
@@ -69,11 +68,12 @@ func (self *StaticConfig) XmppPort() int {
 }
 
 func (self *StaticConfig) AddressToPhone(addr xco.Address) (string, error) {
-	e164, ok := self.Users[addr.LocalPart]
+	e164, ok := self.Users[addr.LocalPart+"@"+addr.DomainPart]
 	if ok {
 		return e164, nil
 	}
 
+	// assume the name is already a phone number
 	return addr.LocalPart, nil
 }
 
