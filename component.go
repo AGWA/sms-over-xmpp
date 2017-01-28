@@ -32,9 +32,27 @@ func runHttpServer(config Config, errCh chan<- error) {
 		msgSid := r.FormValue("MessageSid")
 		log.Printf("%s %s (%s)", r.Method, r.URL.Path, msgSid)
 
+		// which SMS provider is applicable?
+		provider, err := config.SmsProvider()
+		switch err {
+		case nil:
+			// all is well. we'll continue below
+		case ErrIgnoreMessage:
+			msg := "ignored during provider selection"
+			log.Println(msg)
+			return
+		default:
+			msg := fmt.Sprintf("ERROR: choosing an SMS provider: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintln(w, msg)
+			log.Println(msg)
+			return
+		}
+
+		fromPhone, toPhone, body, err := provider.ReceiveSms(r)
 
 		// convert author's phone number into XMPP address
-		from, err := config.PhoneToAddress(r.FormValue("From"))
+		from, err := config.PhoneToAddress(fromPhone)
 		switch err {
 		case nil:
 			// all is well. proceed
@@ -43,7 +61,7 @@ func runHttpServer(config Config, errCh chan<- error) {
 			log.Println(msg)
 			return
 		default:
-			msg := fmt.Sprintf("ERROR: From address %s: %s", r.FormValue("From"), err)
+			msg := fmt.Sprintf("ERROR: From address %s: %s", fromPhone, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintln(w, msg)
 			log.Println(msg)
@@ -51,7 +69,7 @@ func runHttpServer(config Config, errCh chan<- error) {
 		}
 
 		// convert recipient's phone number into XMPP address
-		to, err := config.PhoneToAddress(r.FormValue("To"))
+		to, err := config.PhoneToAddress(toPhone)
 		switch err {
 		case nil:
 			// all is well. proceed
@@ -60,13 +78,12 @@ func runHttpServer(config Config, errCh chan<- error) {
 			log.Println(msg)
 			return
 		default:
-			msg := fmt.Sprintf("ERROR: To address %s: %s", r.FormValue("To"), err)
+			msg := fmt.Sprintf("ERROR: To address %s: %s", toPhone, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintln(w, msg)
 			log.Println(msg)
 			return
 		}
-		body := r.FormValue("Body")
 
 		log.Printf("would have sent (%s -> %s): %s", &from, &to, body)
 	})

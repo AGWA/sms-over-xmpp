@@ -80,3 +80,11 @@ func (t *Twilio) SendSms(from, to, body string) error {
 	form.Set("Body", body)
 	return t.do("Messages", form)
 }
+
+func (t *Twilio) ReceiveSms(r *http.Request) (string, string, string, error) {
+	from := r.FormValue("From")
+	to := r.FormValue("To")
+	body := r.FormValue("Body")
+
+	return from, to, body, nil
+}
