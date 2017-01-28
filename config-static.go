@@ -13,6 +13,10 @@ type StaticConfig struct {
 
 	Xmpp StaticConfigXmpp `toml:"xmpp"`
 
+	// Phones maps an E.164 phone number to an XMPP address.  If a
+	// mapping is not found here, the inverse of Users is considered.
+	Phones map[string]string `toml:"phones"`
+
 	// Users maps an XMPP address to an E.164 phone number.
 	Users map[string]string `toml:"users"`
 
@@ -75,6 +79,28 @@ func (self *StaticConfig) AddressToPhone(addr xco.Address) (string, error) {
 
 	// assume the name is already a phone number
 	return addr.LocalPart, nil
+}
+
+func (self *StaticConfig) PhoneToAddress(e164 string) (xco.Address, error) {
+	// is there an explicit mapping?
+	jid, ok := self.Phones[e164]
+	if ok {
+		return xco.ParseAddress(jid)
+	}
+
+	// maybe there's an implicit mapping
+	for jid, phone := range self.Users {
+		if phone == e164 {
+			return xco.ParseAddress(jid)
+		}
+	}
+
+	// assume the phone number is the user name
+	addr := xco.Address{
+		LocalPart:  e164,
+		DomainPart: self.Xmpp.Name,
+	}
+	return addr, nil
 }
 
 func (self *StaticConfig) SmsProvider(from, to string) (SmsProvider, error) {

@@ -29,8 +29,46 @@ func Main(config Config) {
 func runHttpServer(config Config, errCh chan<- error) {
 	addr := fmt.Sprintf("%s:%d", config.HttpHost(), config.HttpPort())
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s", r.Method, r.URL.Path)
-		fmt.Fprintln(w, "sms-over-xmpp says hi")
+		msgSid := r.FormValue("MessageSid")
+		log.Printf("%s %s (%s)", r.Method, r.URL.Path, msgSid)
+
+
+		// convert author's phone number into XMPP address
+		from, err := config.PhoneToAddress(r.FormValue("From"))
+		switch err {
+		case nil:
+			// all is well. proceed
+		case ErrIgnoreMessage:
+			msg := "ignored based on From address"
+			log.Println(msg)
+			return
+		default:
+			msg := fmt.Sprintf("ERROR: From address %s: %s", r.FormValue("From"), err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintln(w, msg)
+			log.Println(msg)
+			return
+		}
+
+		// convert recipient's phone number into XMPP address
+		to, err := config.PhoneToAddress(r.FormValue("To"))
+		switch err {
+		case nil:
+			// all is well. proceed
+		case ErrIgnoreMessage:
+			msg := "ignored based on To address"
+			log.Println(msg)
+			return
+		default:
+			msg := fmt.Sprintf("ERROR: To address %s: %s", r.FormValue("To"), err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintln(w, msg)
+			log.Println(msg)
+			return
+		}
+		body := r.FormValue("Body")
+
+		log.Printf("would have sent (%s -> %s): %s", &from, &to, body)
 	})
 	errCh <- http.ListenAndServe(addr, handler)
 	close(errCh)
