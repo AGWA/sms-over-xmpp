@@ -12,11 +12,13 @@ import (
 )
 
 func Main(config Config) {
+	sc := &Component{config}
+
 	xmppErr := make(chan error)
-	go runXmppComponent(config, xmppErr)
+	go sc.runXmppComponent(xmppErr)
 
 	httpErr := make(chan error)
-	go runHttpServer(config, httpErr)
+	go sc.runHttpServer(httpErr)
 
 	select {
 	case err := <-httpErr:
@@ -26,7 +28,8 @@ func Main(config Config) {
 	}
 }
 
-func runHttpServer(config Config, errCh chan<- error) {
+func (sc *Component) runHttpServer(errCh chan<- error) {
+	config := sc.config
 	addr := fmt.Sprintf("%s:%d", config.HttpHost(), config.HttpPort())
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		msgSid := r.FormValue("MessageSid")
@@ -91,7 +94,8 @@ func runHttpServer(config Config, errCh chan<- error) {
 	close(errCh)
 }
 
-func runXmppComponent(config Config, errCh chan<- error) {
+func (sc *Component) runXmppComponent(errCh chan<- error) {
+	config := sc.config
 	opts := xco.Options{
 		Name:         config.ComponentName(),
 		SharedSecret: config.SharedSecret(),
@@ -103,7 +107,6 @@ func runXmppComponent(config Config, errCh chan<- error) {
 		panic(err)
 	}
 
-	sc := &Component{config}
 	c.MessageHandler = sc.onMessage
 	c.PresenceHandler = sc.onPresence
 	c.IqHandler = sc.onIq
