@@ -19,7 +19,7 @@ import (
 // should be ignored; as if it never happened.
 var ErrIgnoreMessage = errors.New("ignore this message")
 
-// Component represents an SMS-over-XMPP component
+// Component represents an SMS-over-XMPP component.
 type Component struct {
 	config Config
 
@@ -28,6 +28,9 @@ type Component struct {
 	xmpp *xco.Component
 }
 
+// Main runs a component using the given configuration.  It's the main
+// entrypoint for launching your own component if you don't want to
+// use the sms-over-xmpp command.
 func Main(config Config) {
 	sc := &Component{config: config}
 
