@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	xco "github.com/mndrix/go-xco"
 	"github.com/pkg/errors"
@@ -79,8 +80,12 @@ func (sc *Component) runXmppComponent() (<-chan error, error) {
 
 	errCh := make(chan error)
 	go func() {
-		errCh <- c.Run()
-		close(errCh)
+		defer func() { close(errCh) }()
+		for {
+			errCh <- c.Run()
+			log.Printf("lost XMPP connection. Reconnecting")
+			time.Sleep(1 * time.Second)
+		}
 	}()
 	return errCh, nil
 }
