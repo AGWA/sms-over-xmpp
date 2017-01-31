@@ -40,10 +40,7 @@ func Main(config Config) {
 	sc := &Component{config: config}
 
 	// start goroutine for handling XMPP
-	xmppErr, err := sc.runXmppComponent()
-	if err != nil {
-		panic(err)
-	}
+	xmppErr := sc.runXmppComponent()
 
 	// start goroutine for handling HTTP
 	httpErr := sc.runHttpServer()
@@ -73,7 +70,7 @@ func (sc *Component) runHttpServer() <-chan error {
 	return errCh
 }
 
-func (sc *Component) runXmppComponent() (<-chan error, error) {
+func (sc *Component) runXmppComponent() <-chan error {
 	config := sc.config
 	opts := xco.Options{
 		Name:         config.ComponentName(),
@@ -103,7 +100,7 @@ func (sc *Component) runXmppComponent() (<-chan error, error) {
 			time.Sleep(1 * time.Second)
 		}
 	}()
-	return errCh, nil
+	return errCh
 }
 
 func (sc *Component) setXmpp(c *xco.Component) {
