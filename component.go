@@ -39,38 +39,42 @@ type Component struct {
 func Main(config Config) {
 	sc := &Component{config: config}
 
-	// start goroutine for handling XMPP
-	xmppErr := sc.runXmppComponent()
-
-	// start goroutine for handling HTTP
-	httpErr := sc.runHttpServer()
+	// start goroutine for handling XMPP and HTTP
+	xmppDead := sc.runXmppComponent()
+	httpDead := sc.runHttpServer()
 
 	for {
 		select {
-		case err := <-httpErr:
-			log.Printf("ERROR HTTP: %s", err)
-		case err := <-xmppErr:
-			log.Printf("ERROR XMPP: %s", err)
+		case _ = <-httpDead:
+			log.Printf("HTTP died. Restarting")
+			httpDead = sc.runHttpServer()
+		case _ = <-xmppDead:
+			log.Printf("XMPP died. Restarting")
+			time.Sleep(1 * time.Second) // don't hammer server
+			xmppDead = sc.runXmppComponent()
 		}
 	}
 }
 
-func (sc *Component) runHttpServer() <-chan error {
+// runHttpServer creates a goroutine for receiving HTTP requests.
+// it returns a channel for monitoring the goroutine's health.
+// if that channel closes, the HTTP goroutine has died.
+func (sc *Component) runHttpServer() <-chan struct{} {
 	config := sc.config
 	addr := fmt.Sprintf("%s:%d", config.HttpHost(), config.HttpPort())
-	errCh := make(chan error)
+	healthCh := make(chan struct{})
 	go func() {
-		defer func() { close(errCh) }()
-		for {
-			errCh <- http.ListenAndServe(addr, sc)
-			log.Printf("HTTP server quit. Restarting")
-			time.Sleep(1 * time.Second)
-		}
+		defer func() { close(healthCh) }()
+		err := http.ListenAndServe(addr, sc)
+		log.Printf("HTTP server error: %s", err)
 	}()
-	return errCh
+	return healthCh
 }
 
-func (sc *Component) runXmppComponent() <-chan error {
+// runXmppComponent creates a goroutine for sending and receiving XMPP
+// stanzas.  it returns a channel for monitoring the goroutine's health.
+// if that channel closes, the XMPP goroutine has died.
+func (sc *Component) runXmppComponent() <-chan struct{} {
 	config := sc.config
 	opts := xco.Options{
 		Name:         config.ComponentName(),
@@ -79,28 +83,26 @@ func (sc *Component) runXmppComponent() <-chan error {
 		Logger:       log.New(os.Stderr, "", log.LstdFlags),
 	}
 
-	errCh := make(chan error)
+	healthCh := make(chan struct{})
 	go func() {
-		defer func() { close(errCh) }()
-		for {
-			c, err := xco.NewComponent(opts)
-			if err != nil {
-				errCh <- err
-				break
-			}
+		defer func() { close(healthCh) }()
 
-			c.MessageHandler = sc.onMessage
-			c.PresenceHandler = sc.onPresence
-			c.IqHandler = sc.onIq
-			c.UnknownHandler = sc.onUnknown
-			sc.setXmpp(c)
-
-			errCh <- c.Run()
-			log.Printf("lost XMPP connection. Reconnecting")
-			time.Sleep(1 * time.Second)
+		c, err := xco.NewComponent(opts)
+		if err != nil {
+			log.Printf("can't create internal XMPP component: %s", err)
+			return
 		}
+
+		c.MessageHandler = sc.onMessage
+		c.PresenceHandler = sc.onPresence
+		c.IqHandler = sc.onIq
+		c.UnknownHandler = sc.onUnknown
+		sc.setXmpp(c)
+
+		err = c.Run()
+		log.Printf("lost XMPP connection: %s", err)
 	}()
-	return errCh
+	return healthCh
 }
 
 func (sc *Component) setXmpp(c *xco.Component) {
