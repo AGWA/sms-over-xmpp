@@ -71,8 +71,40 @@ directly to sms-over-xmpp.
 
 # Installation
 
-...
+Install the binary with
 
-# Configuration.
+    go get github.com/mndrix/sms-over-xmpp/...
 
-...
+Write a config file (`config.toml` is a common name):
+
+```toml
+# define how to connect to your XMPP server
+[xmpp]
+host = "127.0.0.1"
+port = 5347
+name = "sms.example.com"
+secret = "shared secret from your XMPP server config"
+
+# Twilio API details
+[twilio]
+account-sid = "AC..."
+key-sid = "SK..."
+key-secret = "..."
+
+# map XMPP usernames to E.164 phone numbers
+[users]
+"john@example.com" = "+13075551212"
+```
+
+Run your SMS component:
+
+    sms-over-xmpp config.toml
+
+To receive incoming SMS, you also have to associate each of your
+Twilio phone numbers with a messaging URL.  It's usually easiest to
+configure
+a
+[TwiML App](https://www.twilio.com/console/sms/dev-tools/twiml-apps/add) then
+attach it to each of your phone numbers.  The messaging URL is the
+address through which Twilio can contact sms-over-xmpp with an HTTP
+request.
