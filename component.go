@@ -43,11 +43,13 @@ func Main(config Config) {
 	// start goroutine for handling HTTP
 	httpErr := sc.runHttpServer()
 
-	select {
-	case err := <-httpErr:
-		log.Printf("ERROR HTTP: %s", err)
-	case err := <-xmppErr:
-		log.Printf("ERROR XMPP: %s", err)
+	for {
+		select {
+		case err := <-httpErr:
+			log.Printf("ERROR HTTP: %s", err)
+		case err := <-xmppErr:
+			log.Printf("ERROR XMPP: %s", err)
+		}
 	}
 }
 
@@ -56,8 +58,12 @@ func (sc *Component) runHttpServer() <-chan error {
 	addr := fmt.Sprintf("%s:%d", config.HttpHost(), config.HttpPort())
 	errCh := make(chan error)
 	go func() {
-		errCh <- http.ListenAndServe(addr, sc)
-		close(errCh)
+		defer func() { close(errCh) }()
+		for {
+			errCh <- http.ListenAndServe(addr, sc)
+			log.Printf("HTTP server quit. Restarting")
+			time.Sleep(1 * time.Second)
+		}
 	}()
 	return errCh
 }
