@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	xco "github.com/mndrix/go-xco"
@@ -26,6 +27,10 @@ type Component struct {
 	// xmpp is the XMPP component which handles all interactions
 	// with an XMPP server.
 	xmpp *xco.Component
+
+	// xmppMutex serializes access to the XMPP component to avoid
+	// collisions while talking to the XMPP server.
+	xmppMutex sync.Mutex
 }
 
 // Main runs a component using the given configuration.  It's the main
@@ -231,10 +236,19 @@ func (sc *Component) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Type: "chat",
 		Body: body,
 	}
-	err = sc.xmpp.Send(msg)
+	err = sc.xmppSend(msg)
 	if err != nil {
 		log.Printf("ERROR: can't send message: %s", err)
 	}
+}
+
+// xmppSend sends a single XML stanza over the XMPP connection.  It
+// serializes concurrent access to avoid collisions on the wire.
+func (sc *Component) xmppSend(msg interface{}) error {
+	sc.xmppMutex.Lock()
+	defer func() { sc.xmppMutex.Unlock() }()
+
+	return sc.xmpp.Send(msg)
 }
 
 // NewId generates a random string which is suitable as an XMPP stanza
