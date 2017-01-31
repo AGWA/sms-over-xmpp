@@ -90,7 +90,7 @@ func (sc *Component) runXmppComponent() (<-chan error, error) {
 	c.PresenceHandler = sc.onPresence
 	c.IqHandler = sc.onIq
 	c.UnknownHandler = sc.onUnknown
-	sc.xmpp = c
+	sc.setXmpp(c)
 
 	errCh := make(chan error)
 	go func() {
@@ -102,6 +102,13 @@ func (sc *Component) runXmppComponent() (<-chan error, error) {
 		}
 	}()
 	return errCh, nil
+}
+
+func (sc *Component) setXmpp(c *xco.Component) {
+	sc.xmppMutex.Lock()
+	defer func() { sc.xmppMutex.Unlock() }()
+
+	sc.xmpp = c
 }
 
 func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
