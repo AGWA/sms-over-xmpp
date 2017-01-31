@@ -52,7 +52,11 @@ func (self *StaticConfig) SharedSecret() string {
 }
 
 func (self *StaticConfig) HttpHost() string {
-	return self.Http.Host
+	host := self.Http.Host
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	return host
 }
 
 func (self *StaticConfig) HttpPort() int {
