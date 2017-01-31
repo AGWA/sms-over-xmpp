@@ -81,21 +81,23 @@ func (sc *Component) runXmppComponent() (<-chan error, error) {
 		Address:      fmt.Sprintf("%s:%d", config.XmppHost(), config.XmppPort()),
 		Logger:       log.New(os.Stderr, "", log.LstdFlags),
 	}
-	c, err := xco.NewComponent(opts)
-	if err != nil {
-		return nil, err
-	}
-
-	c.MessageHandler = sc.onMessage
-	c.PresenceHandler = sc.onPresence
-	c.IqHandler = sc.onIq
-	c.UnknownHandler = sc.onUnknown
-	sc.setXmpp(c)
 
 	errCh := make(chan error)
 	go func() {
 		defer func() { close(errCh) }()
 		for {
+			c, err := xco.NewComponent(opts)
+			if err != nil {
+				errCh <- err
+				break
+			}
+
+			c.MessageHandler = sc.onMessage
+			c.PresenceHandler = sc.onPresence
+			c.IqHandler = sc.onIq
+			c.UnknownHandler = sc.onUnknown
+			sc.setXmpp(c)
+
 			errCh <- c.Run()
 			log.Printf("lost XMPP connection. Reconnecting")
 			time.Sleep(1 * time.Second)
