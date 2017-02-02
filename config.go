@@ -48,3 +48,19 @@ type Config interface {
 	// XmppPort is the port on which the XMPP server is listening.
 	XmppPort() int
 }
+
+// CanHttpAuth is the methods that a config value should implement if
+// it supports HTTP authentication of incoming requests.
+//
+// If both HttpUsername and HttpPassword return empty strings, an HTTP
+// request is considered authentic regardless of username and
+// password.
+type CanHttpAuth interface {
+	// HttpUsername is an optional username to authenticate HTTP
+	// requests from a service provider.
+	HttpUsername() string
+
+	// HttpPassword is an optional password to authenticate HTTP
+	// requests from a service provider.
+	HttpPassword() string
+}

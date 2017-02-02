@@ -28,6 +28,9 @@ type StaticConfig struct {
 type HttpConfig struct {
 	Host string `toml:"host"`
 	Port int    `toml:"port"`
+
+	Username string `toml:"username"`
+	Password string `toml:"password"`
 }
 
 type StaticConfigXmpp struct {
@@ -65,6 +68,14 @@ func (self *StaticConfig) HttpPort() int {
 		port = 9677
 	}
 	return port
+}
+
+func (self *StaticConfig) HttpUsername() string {
+	return self.Http.Username
+}
+
+func (self *StaticConfig) HttpPassword() string {
+	return self.Http.Password
 }
 
 func (self *StaticConfig) XmppHost() string {
