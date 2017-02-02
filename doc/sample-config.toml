@@ -1,0 +1,90 @@
+# The sms-over-xmpp config file is TOML.  To a first approximation,
+# this is just the classic INI format.
+#
+# See https://github.com/toml-lang/toml for full details about the
+# format.
+
+# The xmpp section holds all configuration related to the XMPP
+# protocol.  This includes information about the server to which this
+# component connects and the way this component interprets/generates
+# XMPP stanzas.
+[xmpp]
+# host is the domain name or IP address of the XMPP server to which
+# this component connects.  The XMPP server can run locally or
+# remotely.  TLS connections to the server are not supported so be
+# cautious if you use a remote server.
+host = "127.0.0.1"
+
+# port is the port on which the XMPP server is listening.
+port = 5347
+
+# name is the domain name under which this component will operate.
+# This must match the component's domain name in your XMPP server.
+# Otherwise, the component handshake will fail.
+name = "sms.example.com"
+
+# secret is the secret shared with the XMPP server.  This must
+# match the secret configured in the XMPP server.
+secret = "secret shared with the XMPP server"
+
+
+# The http section holds all configuration for the internal HTTP
+# server.  It's used for receiving incoming SMS from your telephony
+# provider.
+[http]
+# host is the IP address of the network interface on which to listen
+# for HTTP requests.  If omitted, defaults to "127.0.0.1"
+host = "127.0.0.1"
+
+# port is the port on which to listen for HTTP requests. If omitted,
+# defaults to 9677.
+port = 9677
+
+# username is the username that your telephony provider will use for
+# HTTP Basic authentication on their requests.
+username = "telephony-user"
+
+# password is the password that your telephony provider will use for
+# HTTP Basic authentication on their requests.
+password = "telephony secret"
+
+
+# The users section maps XMPP users to their public phone numbers.
+# Each user should be specified by their bare JID.  Each phone number
+# should be in E.164 format.
+#
+# When a user listed here sends an XMPP message to the component
+# domain, the component generates an SMS with caller ID set to the
+# corresponding phone number. If the "phones" section (see below) is
+# missing or has no entry for the recipient of an inbound SMS, a
+# reverse mapping from this section is used to determine which XMPP
+# user receives the message.
+#
+# Each XMPP user should have only one phone number listed here.
+[users]
+"joe@example.com" = "+13075551212"
+
+
+# The optional phones section maps public phone numbers to XMPP users.
+# Each phone number should be in E.164 format.  When an incoming SMS
+# arrives for a phone number here, it's converted into an XMPP message
+# to the corresponding user.  Multiple phone numbers can map to the
+# same XMPP user.
+[phones]
+"+13075551212" = "joe@example.com"
+"+14235551212" = "joe@example.com"
+
+
+# The twilio section provides accoun and authentication details for
+# your Twilio account.  If you're using some other telephony provider,
+# this section can be omitted.
+[twilio]
+# account-sid is the main account identifier listed on your Twilio
+# Console.  See https://www.twilio.com/console
+account-sid = "AC..."
+
+# key-sid and key-secret are Twilio API credentials generated from
+# https://www.twilio.com/console/sms/dev-tools/api-keys These are
+# different from your Twilio "auth token", which won't work here.
+key-sid = "SK..."
+key-secret = "..."
