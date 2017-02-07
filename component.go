@@ -94,6 +94,7 @@ func (sc *Component) runXmppComponent() <-chan struct{} {
 		}
 
 		c.MessageHandler = sc.onMessage
+		c.DiscoInfoHandler = sc.onDiscoInfo
 		c.PresenceHandler = sc.onPresence
 		c.IqHandler = sc.onIq
 		c.UnknownHandler = sc.onUnknown
@@ -155,6 +156,18 @@ func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
 	// send the message
 	err = provider.SendSms(fromPhone, toPhone, m.Body)
 	return errors.Wrap(err, "sending SMS")
+}
+
+func (sc *Component) onDiscoInfo(c *xco.Component, iq *xco.Iq) ([]xco.DiscoIdentity, []xco.DiscoFeature, error) {
+	log.Printf("Disco: %+v", iq)
+	ids := []xco.DiscoIdentity{
+		{
+			Category: "gateway",
+			Type:     "sms",
+			Name:     "SMS over XMPP",
+		},
+	}
+	return ids, nil, nil
 }
 
 func (sc *Component) onPresence(c *xco.Component, p *xco.Presence) error {
