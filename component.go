@@ -31,6 +31,15 @@ type Component struct {
 	// xmppMutex serializes access to the XMPP component to avoid
 	// collisions while talking to the XMPP server.
 	xmppMutex sync.Mutex
+
+	// receiptFor contains message delivery receipts that
+	// haven't been delivered yet.  the key is a provider's outgoing
+	// SMS identifier.  the value is the delivery receipt that we should deliver
+	// once the associated SMS has been delivered.
+	receiptFor map[string]*xco.Message
+
+	// receiptForMutex serializes acces to the receiptFor structure
+	receiptForMutex sync.Mutex
 }
 
 // Main runs a component using the given configuration.  It's the main
@@ -38,6 +47,7 @@ type Component struct {
 // use the sms-over-xmpp command.
 func Main(config Config) {
 	sc := &Component{config: config}
+	sc.receiptFor = make(map[string]*xco.Message)
 
 	// start goroutine for handling XMPP and HTTP
 	xmppDead := sc.runXmppComponent()
@@ -159,6 +169,28 @@ func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
 		return errors.Wrap(err, "sending SMS")
 	}
 	log.Printf("Sent SMS with ID %s", id)
+
+	// prepare to handle delivery receipts
+	if m.ReceiptRequest != nil && id != "" {
+		receipt := xco.Message{
+			Header: xco.Header{
+				From: m.Header.To,
+				To:   m.Header.From,
+				ID:   NewId(),
+			},
+			ReceiptAck: &xco.ReceiptAck{
+				Id: m.Header.ID,
+			},
+		}
+		sc.receiptForMutex.Lock()
+		defer func() { sc.receiptForMutex.Unlock() }()
+		if len(sc.receiptFor) > 10 { // don't get too big
+			log.Printf("clearing pending receipts queue")
+			sc.receiptFor = make(map[string]*xco.Message)
+		}
+		sc.receiptFor[id] = &receipt
+		log.Printf("Waiting to send receipt: %#v", receipt)
+	}
 
 	return nil
 }
