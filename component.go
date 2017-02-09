@@ -154,8 +154,13 @@ func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
 	}
 
 	// send the message
-	err = provider.SendSms(fromPhone, toPhone, m.Body)
-	return errors.Wrap(err, "sending SMS")
+	id, err := provider.SendSms(fromPhone, toPhone, m.Body)
+	if err != nil {
+		return errors.Wrap(err, "sending SMS")
+	}
+	log.Printf("Sent SMS with ID %s", id)
+
+	return nil
 }
 
 func (sc *Component) onDiscoInfo(c *xco.Component, iq *xco.Iq) ([]xco.DiscoIdentity, []xco.DiscoFeature, error) {

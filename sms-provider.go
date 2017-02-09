@@ -10,6 +10,9 @@ type SmsProvider interface {
 	ReceiveSms(r *http.Request) (string, string, string, error)
 
 	// SendSms sends an SMS to the given recipient with the given
-	// caller ID.
-	SendSms(from, to, body string) error
+	// caller ID.  It returns a unique identifier for the outgoing
+	// message.  If possible, the identifier should identify this
+	// message in the provider's logs.  If not, a random identifier
+	// can be used.
+	SendSms(from, to, body string) (string, error)
 }

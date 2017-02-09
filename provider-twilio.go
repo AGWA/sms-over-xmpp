@@ -40,21 +40,21 @@ func (t *Twilio) httpClient() *http.Client {
 }
 
 // do runs a single API request against Twilio
-func (t *Twilio) do(service string, form url.Values) error {
+func (t *Twilio) do(service string, form url.Values) (*twilioApiResponse, error) {
 	url := "https://api.twilio.com/2010-04-01/Accounts/" + t.accountSid + "/" + service + ".json"
 	req, err := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if err != nil {
-		return errors.Wrap(err, "building HTTP request")
+		return nil, errors.Wrap(err, "building HTTP request")
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth(t.keySid, t.keySecret)
 
 	res, err := t.httpClient().Do(req)
 	if err != nil {
-		return errors.Wrap(err, "running HTTP request")
+		return nil, errors.Wrap(err, "running HTTP request")
 	}
 	if res.StatusCode < 200 || res.StatusCode > 299 {
-		return fmt.Errorf("unexpected status: %s", res.Status)
+		return nil, fmt.Errorf("unexpected status: %s", res.Status)
 	}
 
 	// parse response
@@ -62,23 +62,27 @@ func (t *Twilio) do(service string, form url.Values) error {
 	defer res.Body.Close()
 	err = json.NewDecoder(res.Body).Decode(tRes)
 	if err != nil {
-		return errors.Wrap(err, "parsing Twilio response")
+		return nil, errors.Wrap(err, "parsing Twilio response")
 	}
 
 	// was the message queued for delivery?
 	if tRes.Status != "queued" {
-		return fmt.Errorf("unexpected status from Twilio API (%s): %s", tRes.Status, tRes.Message)
+		return nil, fmt.Errorf("unexpected status from Twilio API (%s): %s", tRes.Status, tRes.Message)
 	}
 
-	return nil
+	return tRes, nil
 }
 
-func (t *Twilio) SendSms(from, to, body string) error {
+func (t *Twilio) SendSms(from, to, body string) (string, error) {
 	form := make(url.Values)
 	form.Set("To", to)
 	form.Set("From", from)
 	form.Set("Body", body)
-	return t.do("Messages", form)
+	res, err := t.do("Messages", form)
+	if err != nil {
+		return "", err
+	}
+	return res.Sid, nil
 }
 
 func (t *Twilio) ReceiveSms(r *http.Request) (string, string, string, error) {
