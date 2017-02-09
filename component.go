@@ -181,6 +181,7 @@ func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
 			ReceiptAck: &xco.ReceiptAck{
 				Id: m.Header.ID,
 			},
+			XMLName: m.XMLName,
 		}
 		sc.receiptForMutex.Lock()
 		defer func() { sc.receiptForMutex.Unlock() }()
