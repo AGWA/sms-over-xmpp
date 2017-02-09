@@ -252,6 +252,10 @@ func (sc *Component) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fromPhone, toPhone, body, err := provider.ReceiveSms(r)
+	if err != nil {
+		log.Printf("ERROR receiving SMS: %s", err)
+		return
+	}
 
 	// convert author's phone number into XMPP address
 	from, err := sc.config.PhoneToAddress(fromPhone)
