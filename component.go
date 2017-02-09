@@ -205,7 +205,12 @@ func (sc *Component) onDiscoInfo(c *xco.Component, iq *xco.Iq) ([]xco.DiscoIdent
 			Name:     "SMS over XMPP",
 		},
 	}
-	return ids, nil, nil
+	features := []xco.DiscoFeature{
+		{
+			Var: "urn:xmpp:receipts",
+		},
+	}
+	return ids, features, nil
 }
 
 func (sc *Component) onPresence(c *xco.Component, p *xco.Presence) error {
@@ -250,6 +255,26 @@ func (sc *Component) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, msg)
 		log.Println(msg)
 		return
+	}
+
+	// is this an SMS Status update?
+	if p, ok := provider.(CanSmsStatus); ok {
+		if smsId, status, ok := p.SmsStatus(r); ok {
+			if status == "delivered" {
+				sc.receiptForMutex.Lock()
+				defer func() { sc.receiptForMutex.Unlock() }()
+				if receipt, ok := sc.receiptFor[smsId]; ok {
+					err := sc.xmppSend(receipt)
+					if err != nil {
+						log.Printf("ERROR sending SMS delivery receipt: %s", err)
+						return
+					}
+					log.Printf("Sent SMS delivery receipt")
+					delete(sc.receiptFor, smsId)
+				}
+			}
+			return
+		}
 	}
 
 	fromPhone, toPhone, body, err := provider.ReceiveSms(r)

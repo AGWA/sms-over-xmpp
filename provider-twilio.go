@@ -17,11 +17,14 @@ type Twilio struct {
 	keySid     string
 	keySecret  string
 
+	publicUrl *url.URL
+
 	client *http.Client
 }
 
-// make sure we implement the interface
+// make sure we implement the right interfaces
 var _ SmsProvider = &Twilio{}
+var _ CanSmsStatus = &Twilio{}
 
 // represents a response from Twilio's API
 type twilioApiResponse struct {
@@ -78,6 +81,9 @@ func (t *Twilio) SendSms(from, to, body string) (string, error) {
 	form.Set("To", to)
 	form.Set("From", from)
 	form.Set("Body", body)
+	if t.publicUrl != nil {
+		form.Set("StatusCallback", t.publicUrl.String())
+	}
 	res, err := t.do("Messages", form)
 	if err != nil {
 		return "", err
@@ -91,4 +97,10 @@ func (t *Twilio) ReceiveSms(r *http.Request) (string, string, string, error) {
 	body := r.FormValue("Body")
 
 	return from, to, body, nil
+}
+
+func (t *Twilio) SmsStatus(r *http.Request) (string, string, bool) {
+	id := r.FormValue("MessageSid")
+	status := r.FormValue("MessageStatus")
+	return id, status, (id != "" && status != "")
 }

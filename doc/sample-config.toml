@@ -48,6 +48,15 @@ username = "telephony-user"
 # HTTP Basic authentication on their requests.
 password = "telephony secret"
 
+# public-url is an optional URL which the public Internet can use to
+# reach the component's internal HTTP server.  The URL is used by
+# telephony providers to give status updates about outgoing SMS.  This
+# URL is necessary for message delivery receipts (XEP-0184) to work.
+# This URL should not include username or password.  If those are
+# required (see "username" and "password" above), they'll be added to
+# the URL automatically.
+public-url = "https://example.com/path/to/sms-over-xmpp"
+
 
 # The users section maps XMPP users to their public phone numbers.
 # Each user should be specified by their bare JID.  Each phone number

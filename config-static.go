@@ -1,8 +1,9 @@
 package sms // import "github.com/mndrix/sms-over-xmpp"
 import (
-	"errors"
+	"net/url"
 
 	xco "github.com/mndrix/go-xco"
+	"github.com/pkg/errors"
 )
 
 // StaticConfig intends to implement the Config interface
@@ -31,6 +32,8 @@ type HttpConfig struct {
 
 	Username string `toml:"username"`
 	Password string `toml:"password"`
+
+	PublicUrl string `toml:"public-url"`
 }
 
 type StaticConfigXmpp struct {
@@ -127,5 +130,22 @@ func (self *StaticConfig) SmsProvider() (SmsProvider, error) {
 		keySid:     self.Twilio.KeySid,
 		keySecret:  self.Twilio.KeySecret,
 	}
+
+	// configure public URL for SMS status updates
+	if self.Http.PublicUrl != "" {
+		u, err := url.Parse(self.Http.PublicUrl)
+		if err != nil {
+			return nil, errors.Wrap(err, "Invalid public URL")
+		}
+		if self.Http.Username != "" {
+			if self.Http.Password == "" {
+				u.User = url.User(self.Http.Username)
+			} else {
+				u.User = url.UserPassword(self.Http.Username, self.Http.Password)
+			}
+		}
+		twilio.publicUrl = u
+	}
+
 	return twilio, nil
 }

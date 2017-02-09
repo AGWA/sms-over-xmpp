@@ -16,3 +16,13 @@ type SmsProvider interface {
 	// can be used.
 	SendSms(from, to, body string) (string, error)
 }
+
+// CanSmsStatus describes a provider that can receive updates about
+// the status of an SMS.
+type CanSmsStatus interface {
+	// SmsStatus returns true if the HTTP request contains an SMS status
+	// update.  If so, it also returns the ID for that SMS and it's
+	// status, respectively.  A status of "delivered" means that the
+	// SMS has been delivered to its final destination.
+	SmsStatus(*http.Request) (string, string, bool)
+}
