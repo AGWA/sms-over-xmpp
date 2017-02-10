@@ -68,10 +68,19 @@ func Main(config Config) {
 // runHttpAgent starts the HTTP agent
 func (sc *Component) runHttpAgent() <-chan struct{} {
 	config := sc.config
+
+	// choose an SMS provider
+	provider, err := config.SmsProvider()
+	if err != nil {
+		msg := fmt.Sprintf("Couldn't choose an SMS provider: %s", err)
+		panic(msg)
+	}
+
 	http := &httpAgent{
-		host: config.HttpHost(),
-		port: config.HttpPort(),
-		sc:   sc,
+		host:     config.HttpHost(),
+		port:     config.HttpPort(),
+		provider: provider,
+		sc:       sc,
 	}
 	if cfg, ok := config.(CanHttpAuth); ok {
 		http.user = cfg.HttpUsername()

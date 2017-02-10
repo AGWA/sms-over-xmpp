@@ -21,6 +21,8 @@ type httpAgent struct {
 	user     string
 	password string
 
+	provider SmsProvider
+
 	// this field is only temporary. remove after refactoring
 	sc *Component
 }
@@ -40,7 +42,6 @@ func (h *httpAgent) run() <-chan struct{} {
 }
 
 func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	sc := h.sc
 	msgSid := r.FormValue("MessageSid")
 	log.Printf("%s %s (%s)", r.Method, r.URL.Path, msgSid)
 
@@ -52,25 +53,8 @@ func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// which SMS provider is applicable?
-	provider, err := sc.config.SmsProvider()
-	switch err {
-	case nil:
-		// all is well. we'll continue below
-	case ErrIgnoreMessage:
-		msg := "ignored during provider selection"
-		log.Println(msg)
-		return
-	default:
-		msg := fmt.Sprintf("ERROR: choosing an SMS provider: %s", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintln(w, msg)
-		log.Println(msg)
-		return
-	}
-
 	// what kind of notice did we receive?
-	err = h.recognizeNotice(provider, r)
+	err := h.recognizeNotice(r)
 	if err != nil {
 		msg := fmt.Sprintf("ERROR: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -80,9 +64,9 @@ func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *httpAgent) recognizeNotice(provider SmsProvider, r *http.Request) error {
+func (h *httpAgent) recognizeNotice(r *http.Request) error {
 	sc := h.sc
-	if p, ok := provider.(CanSmsStatus); ok {
+	if p, ok := h.provider.(CanSmsStatus); ok {
 		if smsId, status, ok := p.SmsStatus(r); ok {
 			if status == "delivered" {
 				return sc.smsDelivered(smsId)
@@ -91,7 +75,7 @@ func (h *httpAgent) recognizeNotice(provider SmsProvider, r *http.Request) error
 		}
 	}
 
-	if fromPhone, toPhone, body, err := provider.ReceiveSms(r); err == nil {
+	if fromPhone, toPhone, body, err := h.provider.ReceiveSms(r); err == nil {
 		return sc.sms2xmpp(fromPhone, toPhone, body)
 	}
 
