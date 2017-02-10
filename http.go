@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	xco "github.com/mndrix/go-xco"
+	"github.com/pkg/errors"
 )
 
 // httpAgent is the piece which listens for incoming HTTP requests and
@@ -94,6 +95,18 @@ func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = sc.sms2xmpp(fromPhone, toPhone, body)
+	if err != nil {
+		msg := fmt.Sprintf("ERROR: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, msg)
+		log.Println(msg)
+		return
+	}
+}
+
+func (sc *Component) sms2xmpp(fromPhone, toPhone, body string) error {
+
 	// convert author's phone number into XMPP address
 	from, err := sc.config.PhoneToAddress(fromPhone)
 	switch err {
@@ -102,13 +115,9 @@ func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case ErrIgnoreMessage:
 		msg := "ignored based on From address"
 		log.Println(msg)
-		return
+		return nil
 	default:
-		msg := fmt.Sprintf("ERROR: From address %s: %s", fromPhone, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintln(w, msg)
-		log.Println(msg)
-		return
+		return errors.Wrap(err, "From address "+fromPhone)
 	}
 
 	// convert recipient's phone number into XMPP address
@@ -119,13 +128,9 @@ func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case ErrIgnoreMessage:
 		msg := "ignored based on To address"
 		log.Println(msg)
-		return
+		return nil
 	default:
-		msg := fmt.Sprintf("ERROR: To address %s: %s", toPhone, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintln(w, msg)
-		log.Println(msg)
-		return
+		return errors.Wrap(err, "To address "+toPhone)
 	}
 
 	// deliver message over XMPP
@@ -144,9 +149,7 @@ func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Body: body,
 	}
 	err = sc.xmppSend(msg)
-	if err != nil {
-		log.Printf("ERROR: can't send message: %s", err)
-	}
+	return errors.Wrap(err, "can't send message")
 }
 
 func (h *httpAgent) isHttpAuthenticated(r *http.Request) bool {
