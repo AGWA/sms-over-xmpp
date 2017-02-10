@@ -73,16 +73,12 @@ func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if p, ok := provider.(CanSmsStatus); ok {
 		if smsId, status, ok := p.SmsStatus(r); ok {
 			if status == "delivered" {
-				sc.receiptForMutex.Lock()
-				defer func() { sc.receiptForMutex.Unlock() }()
-				if receipt, ok := sc.receiptFor[smsId]; ok {
-					err := sc.xmppSend(receipt)
-					if err != nil {
-						log.Printf("ERROR sending SMS delivery receipt: %s", err)
-						return
-					}
-					log.Printf("Sent SMS delivery receipt")
-					delete(sc.receiptFor, smsId)
+				err := sc.smsDelivered(smsId)
+				if err != nil {
+					msg := fmt.Sprintf("ERROR: %s", err)
+					w.WriteHeader(http.StatusInternalServerError)
+					fmt.Fprintln(w, msg)
+					log.Println(msg)
 				}
 			}
 			return
@@ -150,6 +146,21 @@ func (sc *Component) sms2xmpp(fromPhone, toPhone, body string) error {
 	}
 	err = sc.xmppSend(msg)
 	return errors.Wrap(err, "can't send message")
+}
+
+func (sc *Component) smsDelivered(smsId string) error {
+	sc.receiptForMutex.Lock()
+	defer func() { sc.receiptForMutex.Unlock() }()
+
+	if receipt, ok := sc.receiptFor[smsId]; ok {
+		err := sc.xmppSend(receipt)
+		if err != nil {
+			return errors.Wrap(err, "sending SMS delivery receipt")
+		}
+		log.Printf("Sent SMS delivery receipt")
+		delete(sc.receiptFor, smsId)
+	}
+	return nil
 }
 
 func (h *httpAgent) isHttpAuthenticated(r *http.Request) bool {
