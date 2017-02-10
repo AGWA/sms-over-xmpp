@@ -9,10 +9,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-// httpAgent is the piece which listens for incoming HTTP requests and
+// httpProcess is the piece which listens for incoming HTTP requests and
 // converts them into values which the rest of the system can
 // understand.
-type httpAgent struct {
+type httpProcess struct {
 	// where to listen for incoming HTTP requests
 	host string
 	port int
@@ -30,7 +30,7 @@ type httpAgent struct {
 // run creates a goroutine for receiving HTTP requests.  It returns a
 // channel for monitoring the goroutine's health.  If that channel
 // closes, the HTTP goroutine has died.
-func (h *httpAgent) run() <-chan struct{} {
+func (h *httpProcess) run() <-chan struct{} {
 	addr := fmt.Sprintf("%s:%d", h.host, h.port)
 	healthCh := make(chan struct{})
 	go func() {
@@ -41,7 +41,7 @@ func (h *httpAgent) run() <-chan struct{} {
 	return healthCh
 }
 
-func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *httpProcess) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	msgSid := r.FormValue("MessageSid")
 	log.Printf("%s %s (%s)", r.Method, r.URL.Path, msgSid)
 
@@ -64,7 +64,7 @@ func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *httpAgent) recognizeNotice(r *http.Request) error {
+func (h *httpProcess) recognizeNotice(r *http.Request) error {
 	sc := h.sc
 	if p, ok := h.provider.(CanSmsStatus); ok {
 		if smsId, status, ok := p.SmsStatus(r); ok {
@@ -144,7 +144,7 @@ func (sc *Component) smsDelivered(smsId string) error {
 	return nil
 }
 
-func (h *httpAgent) isHttpAuthenticated(r *http.Request) bool {
+func (h *httpProcess) isHttpAuthenticated(r *http.Request) bool {
 	wantUser := h.user
 	wantPass := h.password
 	if wantUser == "" && wantPass == "" {

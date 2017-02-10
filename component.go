@@ -50,13 +50,13 @@ func Main(config Config) {
 
 	// start goroutine for handling XMPP and HTTP
 	xmppDead := sc.runXmppComponent()
-	httpDead := sc.runHttpAgent()
+	httpDead := sc.runHttpProcess()
 
 	for {
 		select {
 		case _ = <-httpDead:
 			log.Printf("HTTP died. Restarting")
-			httpDead = sc.runHttpAgent()
+			httpDead = sc.runHttpProcess()
 		case _ = <-xmppDead:
 			log.Printf("XMPP died. Restarting")
 			time.Sleep(1 * time.Second) // don't hammer server
@@ -65,8 +65,8 @@ func Main(config Config) {
 	}
 }
 
-// runHttpAgent starts the HTTP agent
-func (sc *Component) runHttpAgent() <-chan struct{} {
+// runHttpProcess starts the HTTP agent
+func (sc *Component) runHttpProcess() <-chan struct{} {
 	config := sc.config
 
 	// choose an SMS provider
@@ -76,7 +76,7 @@ func (sc *Component) runHttpAgent() <-chan struct{} {
 		panic(msg)
 	}
 
-	http := &httpAgent{
+	http := &httpProcess{
 		host:     config.HttpHost(),
 		port:     config.HttpPort(),
 		provider: provider,
