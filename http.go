@@ -75,17 +75,17 @@ func (h *httpProcess) recognizeNotice(r *http.Request) error {
 		}
 	}
 
-	if fromPhone, toPhone, body, err := h.provider.ReceiveSms(r); err == nil {
-		return sc.sms2xmpp(fromPhone, toPhone, body)
+	if sms, err := h.provider.ReceiveSms(r); err == nil {
+		return sc.sms2xmpp(sms)
 	}
 
 	return nil
 }
 
-func (sc *Component) sms2xmpp(fromPhone, toPhone, body string) error {
+func (sc *Component) sms2xmpp(sms *Sms) error {
 
 	// convert author's phone number into XMPP address
-	from, err := sc.config.PhoneToAddress(fromPhone)
+	from, err := sc.config.PhoneToAddress(sms.From)
 	switch err {
 	case nil:
 		// all is well. proceed
@@ -94,11 +94,11 @@ func (sc *Component) sms2xmpp(fromPhone, toPhone, body string) error {
 		log.Println(msg)
 		return nil
 	default:
-		return errors.Wrap(err, "From address "+fromPhone)
+		return errors.Wrap(err, "From address "+sms.From)
 	}
 
 	// convert recipient's phone number into XMPP address
-	to, err := sc.config.PhoneToAddress(toPhone)
+	to, err := sc.config.PhoneToAddress(sms.To)
 	switch err {
 	case nil:
 		// all is well. proceed
@@ -107,7 +107,7 @@ func (sc *Component) sms2xmpp(fromPhone, toPhone, body string) error {
 		log.Println(msg)
 		return nil
 	default:
-		return errors.Wrap(err, "To address "+toPhone)
+		return errors.Wrap(err, "To address "+sms.To)
 	}
 
 	// deliver message over XMPP
@@ -123,7 +123,7 @@ func (sc *Component) sms2xmpp(fromPhone, toPhone, body string) error {
 			ID:   NewId(),
 		},
 		Type: "chat",
-		Body: body,
+		Body: sms.Body,
 	}
 	err = sc.xmppSend(msg)
 	return errors.Wrap(err, "can't send message")

@@ -191,7 +191,11 @@ func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
 	}
 
 	// send the message
-	id, err := provider.SendSms(fromPhone, toPhone, m.Body)
+	id, err := provider.SendSms(&Sms{
+		From: fromPhone,
+		To:   toPhone,
+		Body: m.Body,
+	})
 	if err != nil {
 		return errors.Wrap(err, "sending SMS")
 	}

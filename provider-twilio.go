@@ -76,11 +76,11 @@ func (t *Twilio) do(service string, form url.Values) (*twilioApiResponse, error)
 	return tRes, nil
 }
 
-func (t *Twilio) SendSms(from, to, body string) (string, error) {
+func (t *Twilio) SendSms(sms *Sms) (string, error) {
 	form := make(url.Values)
-	form.Set("To", to)
-	form.Set("From", from)
-	form.Set("Body", body)
+	form.Set("To", sms.To)
+	form.Set("From", sms.From)
+	form.Set("Body", sms.Body)
 	if t.publicUrl != nil {
 		form.Set("StatusCallback", t.publicUrl.String())
 	}
@@ -91,12 +91,17 @@ func (t *Twilio) SendSms(from, to, body string) (string, error) {
 	return res.Sid, nil
 }
 
-func (t *Twilio) ReceiveSms(r *http.Request) (string, string, string, error) {
+func (t *Twilio) ReceiveSms(r *http.Request) (*Sms, error) {
 	from := r.FormValue("From")
 	to := r.FormValue("To")
 	body := r.FormValue("Body")
 
-	return from, to, body, nil
+	sms := &Sms{
+		From: from,
+		To:   to,
+		Body: body,
+	}
+	return sms, nil
 }
 
 func (t *Twilio) SmsStatus(r *http.Request) (string, string, bool) {
