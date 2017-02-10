@@ -8,27 +8,43 @@ import (
 	xco "github.com/mndrix/go-xco"
 )
 
-// runHttpServer creates a goroutine for receiving HTTP requests.
-// it returns a channel for monitoring the goroutine's health.
-// if that channel closes, the HTTP goroutine has died.
-func (sc *Component) runHttpServer() <-chan struct{} {
-	config := sc.config
-	addr := fmt.Sprintf("%s:%d", config.HttpHost(), config.HttpPort())
+// httpAgent is the piece which listens for incoming HTTP requests and
+// converts them into values which the rest of the system can
+// understand.
+type httpAgent struct {
+	// where to listen for incoming HTTP requests
+	host string
+	port int
+
+	// credentials for HTTP auth
+	user     string
+	password string
+
+	// this field is only temporary. remove after refactoring
+	sc *Component
+}
+
+// run creates a goroutine for receiving HTTP requests.  It returns a
+// channel for monitoring the goroutine's health.  If that channel
+// closes, the HTTP goroutine has died.
+func (h *httpAgent) run() <-chan struct{} {
+	addr := fmt.Sprintf("%s:%d", h.host, h.port)
 	healthCh := make(chan struct{})
 	go func() {
 		defer func() { close(healthCh) }()
-		err := http.ListenAndServe(addr, sc)
+		err := http.ListenAndServe(addr, h)
 		log.Printf("HTTP server error: %s", err)
 	}()
 	return healthCh
 }
 
-func (sc *Component) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	sc := h.sc
 	msgSid := r.FormValue("MessageSid")
 	log.Printf("%s %s (%s)", r.Method, r.URL.Path, msgSid)
 
 	// verify HTTP authentication
-	if !sc.isHttpAuthenticated(r) {
+	if !h.isHttpAuthenticated(r) {
 		w.Header().Set("WWW-Authenticate", "Basic realm=\"sms-over-xmpp\"")
 		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprintln(w, "Not authorized")
@@ -133,14 +149,9 @@ func (sc *Component) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (sc *Component) isHttpAuthenticated(r *http.Request) bool {
-	// config without any HTTP auth allows everything
-	conf, ok := sc.config.(CanHttpAuth)
-	if !ok {
-		return true
-	}
-	wantUser := conf.HttpUsername()
-	wantPass := conf.HttpPassword()
+func (h *httpAgent) isHttpAuthenticated(r *http.Request) bool {
+	wantUser := h.user
+	wantPass := h.password
 	if wantUser == "" && wantPass == "" {
 		return true
 	}

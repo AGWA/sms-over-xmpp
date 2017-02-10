@@ -50,19 +50,34 @@ func Main(config Config) {
 
 	// start goroutine for handling XMPP and HTTP
 	xmppDead := sc.runXmppComponent()
-	httpDead := sc.runHttpServer()
+	httpDead := sc.runHttpAgent()
 
 	for {
 		select {
 		case _ = <-httpDead:
 			log.Printf("HTTP died. Restarting")
-			httpDead = sc.runHttpServer()
+			httpDead = sc.runHttpAgent()
 		case _ = <-xmppDead:
 			log.Printf("XMPP died. Restarting")
 			time.Sleep(1 * time.Second) // don't hammer server
 			xmppDead = sc.runXmppComponent()
 		}
 	}
+}
+
+// runHttpAgent starts the HTTP agent
+func (sc *Component) runHttpAgent() <-chan struct{} {
+	config := sc.config
+	http := &httpAgent{
+		host: config.HttpHost(),
+		port: config.HttpPort(),
+		sc:   sc,
+	}
+	if cfg, ok := config.(CanHttpAuth); ok {
+		http.user = cfg.HttpUsername()
+		http.password = cfg.HttpPassword()
+	}
+	return http.run()
 }
 
 // runXmppComponent creates a goroutine for sending and receiving XMPP
