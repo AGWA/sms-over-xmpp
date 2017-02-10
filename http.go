@@ -58,7 +58,12 @@ func (h *httpProcess) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// what kind of notice did we receive?
-	err := h.recognizeNotice(r)
+	errCh := make(chan error)
+	rx, err := h.recognizeNotice(r, errCh)
+	if err == nil && rx != nil {
+		h.rxSmsCh <- rx
+		err = <-errCh
+	}
 	if err != nil {
 		msg := fmt.Sprintf("ERROR: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -68,22 +73,30 @@ func (h *httpProcess) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *httpProcess) recognizeNotice(r *http.Request) error {
-	sc := h.sc
+func (h *httpProcess) recognizeNotice(r *http.Request, errCh chan<- error) (rxSms, error) {
 	if p, ok := h.provider.(CanSmsStatus); ok {
 		if smsId, status, ok := p.SmsStatus(r); ok {
 			if status == "delivered" {
-				return sc.smsDelivered(smsId)
+				rx := &rxSmsStatus{
+					id:     smsId,
+					status: smsDelivered,
+					errCh:  errCh,
+				}
+				return rx, nil
 			}
-			return nil
+			return nil, nil
 		}
 	}
 
 	if sms, err := h.provider.ReceiveSms(r); err == nil {
-		return sc.sms2xmpp(sms)
+		rx := &rxSmsMessage{
+			sms:   sms,
+			errCh: errCh,
+		}
+		return rx, nil
+	} else {
+		return nil, err
 	}
-
-	return nil
 }
 
 func (sc *Component) sms2xmpp(sms *Sms) error {

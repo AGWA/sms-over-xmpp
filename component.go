@@ -83,7 +83,23 @@ func (sc *Component) runGatewayProcess() <-chan struct{} {
 		defer func() { close(healthCh) }()
 
 		for {
-			select {} // block forever
+			select {
+			case rxSms := <-rxSmsCh:
+				errCh := rxSms.ErrCh()
+				switch x := rxSms.(type) {
+				case *rxSmsMessage:
+					errCh <- sc.sms2xmpp(x.sms)
+				case *rxSmsStatus:
+					switch x.status {
+					case smsDelivered:
+						errCh <- sc.smsDelivered(x.id)
+					default:
+						log.Panicf("unexpected SMS status: %d", x.status)
+					}
+				default:
+					log.Panicf("unexpected rxSms type: %#v", rxSms)
+				}
+			}
 			log.Println("gateway looping")
 		}
 	}(sc.rxSmsCh)
