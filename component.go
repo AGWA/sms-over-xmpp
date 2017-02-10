@@ -48,12 +48,16 @@ func Main(config Config) {
 	sc := &Component{config: config}
 	sc.receiptFor = make(map[string]*xco.Message)
 
-	// start goroutine for handling XMPP and HTTP
+	// start processes running
+	gatewayDead := sc.runGatewayProcess()
 	xmppDead := sc.runXmppComponent()
 	httpDead := sc.runHttpProcess()
 
 	for {
 		select {
+		case _ = <-gatewayDead:
+			log.Printf("Gateway died. Restarting")
+			gatewayDead = sc.runGatewayProcess()
 		case _ = <-httpDead:
 			log.Printf("HTTP died. Restarting")
 			httpDead = sc.runHttpProcess()
@@ -63,6 +67,21 @@ func Main(config Config) {
 			xmppDead = sc.runXmppComponent()
 		}
 	}
+}
+
+// runGatewayProcess starts the Gateway process. it translates between
+// the HTTP and XMPP processes.
+func (sc *Component) runGatewayProcess() <-chan struct{} {
+	healthCh := make(chan struct{})
+	go func() {
+		defer func() { close(healthCh) }()
+
+		for {
+			select {} // block forever
+			log.Println("gateway looping")
+		}
+	}()
+	return healthCh
 }
 
 // runHttpProcess starts the HTTP agent
