@@ -13,3 +13,15 @@ type Sms struct {
 	// Body is the text content of the message.
 	Body string
 }
+// rxSms represents information we've received about an SMS. it could
+// be a new message arriving or a status update about a message we
+// sent.
+type rxSms interface {
+	// IsRxSms is a dummy method for tagging those types which
+	// represent incoming SMS data.
+	IsRxSms()
+
+	// ErrCh returns a channel on which to report errors that happen
+	// while processing this SMS.
+	ErrCh() chan<- error
+}

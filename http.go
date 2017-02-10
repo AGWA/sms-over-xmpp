@@ -23,6 +23,10 @@ type httpProcess struct {
 
 	provider SmsProvider
 
+	// rxSmsCh is a channel down which we send information we've
+	// received about SMS.
+	rxSmsCh chan<- rxSms
+
 	// this field is only temporary. remove after refactoring
 	sc *Component
 }

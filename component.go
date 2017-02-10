@@ -39,6 +39,11 @@ type Component struct {
 
 	// receiptForMutex serializes acces to the receiptFor structure
 	receiptForMutex sync.Mutex
+
+	// rxSmsCh is a channel connecting HTTP->gateway.  It communicates
+	// information received about SMS (a message, a status update,
+	// etc.)
+	rxSmsCh chan rxSms
 }
 
 // Main runs a component using the given configuration.  It's the main
@@ -47,6 +52,7 @@ type Component struct {
 func Main(config Config) {
 	sc := &Component{config: config}
 	sc.receiptFor = make(map[string]*xco.Message)
+	sc.rxSmsCh = make(chan rxSms)
 
 	// start processes running
 	gatewayDead := sc.runGatewayProcess()
@@ -73,14 +79,14 @@ func Main(config Config) {
 // the HTTP and XMPP processes.
 func (sc *Component) runGatewayProcess() <-chan struct{} {
 	healthCh := make(chan struct{})
-	go func() {
+	go func(rxSmsCh <-chan rxSms) {
 		defer func() { close(healthCh) }()
 
 		for {
 			select {} // block forever
 			log.Println("gateway looping")
 		}
-	}()
+	}(sc.rxSmsCh)
 	return healthCh
 }
 
@@ -99,6 +105,7 @@ func (sc *Component) runHttpProcess() <-chan struct{} {
 		host:     config.HttpHost(),
 		port:     config.HttpPort(),
 		provider: provider,
+		rxSmsCh:  sc.rxSmsCh,
 		sc:       sc,
 	}
 	if cfg, ok := config.(CanHttpAuth); ok {
