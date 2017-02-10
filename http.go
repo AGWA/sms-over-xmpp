@@ -69,29 +69,8 @@ func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// is this an SMS Status update?
-	if p, ok := provider.(CanSmsStatus); ok {
-		if smsId, status, ok := p.SmsStatus(r); ok {
-			if status == "delivered" {
-				err := sc.smsDelivered(smsId)
-				if err != nil {
-					msg := fmt.Sprintf("ERROR: %s", err)
-					w.WriteHeader(http.StatusInternalServerError)
-					fmt.Fprintln(w, msg)
-					log.Println(msg)
-				}
-			}
-			return
-		}
-	}
-
-	fromPhone, toPhone, body, err := provider.ReceiveSms(r)
-	if err != nil {
-		log.Printf("ERROR receiving SMS: %s", err)
-		return
-	}
-
-	err = sc.sms2xmpp(fromPhone, toPhone, body)
+	// what kind of notice did we receive?
+	err = h.recognizeNotice(provider, r)
 	if err != nil {
 		msg := fmt.Sprintf("ERROR: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -99,6 +78,24 @@ func (h *httpAgent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Println(msg)
 		return
 	}
+}
+
+func (h *httpAgent) recognizeNotice(provider SmsProvider, r *http.Request) error {
+	sc := h.sc
+	if p, ok := provider.(CanSmsStatus); ok {
+		if smsId, status, ok := p.SmsStatus(r); ok {
+			if status == "delivered" {
+				return sc.smsDelivered(smsId)
+			}
+			return nil
+		}
+	}
+
+	if fromPhone, toPhone, body, err := provider.ReceiveSms(r); err == nil {
+		return sc.sms2xmpp(fromPhone, toPhone, body)
+	}
+
+	return nil
 }
 
 func (sc *Component) sms2xmpp(fromPhone, toPhone, body string) error {
