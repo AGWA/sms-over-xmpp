@@ -100,7 +100,6 @@ func (sc *Component) runGatewayProcess() <-chan struct{} {
 					log.Panicf("unexpected rxSms type: %#v", rxSms)
 				}
 			}
-			log.Println("gateway looping")
 		}
 	}(sc.rxSmsCh)
 	return healthCh
@@ -122,7 +121,6 @@ func (sc *Component) runHttpProcess() <-chan struct{} {
 		port:     config.HttpPort(),
 		provider: provider,
 		rxSmsCh:  sc.rxSmsCh,
-		sc:       sc,
 	}
 	if cfg, ok := config.(CanHttpAuth); ok {
 		http.user = cfg.HttpUsername()
