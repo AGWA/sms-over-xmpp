@@ -13,6 +13,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// xmppProcess is the piece which interacts with the XMPP network and
+// converts those communications into values which the rest of the
+// system can understand.
+type xmppProcess struct {
+}
+
 // runXmppComponent creates a goroutine for sending and receiving XMPP
 // stanzas.  it returns a channel for monitoring the goroutine's health.
 // if that channel closes, the XMPP goroutine has died.
@@ -25,6 +31,8 @@ func (sc *Component) runXmppComponent() <-chan struct{} {
 		Logger:       log.New(os.Stderr, "", log.LstdFlags),
 	}
 
+	x := &xmppProcess{}
+
 	healthCh := make(chan struct{})
 	go func() {
 		defer func() { close(healthCh) }()
@@ -36,10 +44,10 @@ func (sc *Component) runXmppComponent() <-chan struct{} {
 		}
 
 		c.MessageHandler = sc.onMessage
-		c.DiscoInfoHandler = sc.onDiscoInfo
-		c.PresenceHandler = sc.onPresence
-		c.IqHandler = sc.onIq
-		c.UnknownHandler = sc.onUnknown
+		c.DiscoInfoHandler = x.onDiscoInfo
+		c.PresenceHandler = x.onPresence
+		c.IqHandler = x.onIq
+		c.UnknownHandler = x.onUnknown
 		sc.setXmpp(c)
 
 		err = c.Run()
@@ -132,7 +140,7 @@ func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
 	return nil
 }
 
-func (sc *Component) onDiscoInfo(c *xco.Component, iq *xco.Iq) ([]xco.DiscoIdentity, []xco.DiscoFeature, error) {
+func (x *xmppProcess) onDiscoInfo(c *xco.Component, iq *xco.Iq) ([]xco.DiscoIdentity, []xco.DiscoFeature, error) {
 	log.Printf("Disco: %+v", iq)
 	ids := []xco.DiscoIdentity{
 		{
@@ -149,18 +157,18 @@ func (sc *Component) onDiscoInfo(c *xco.Component, iq *xco.Iq) ([]xco.DiscoIdent
 	return ids, features, nil
 }
 
-func (sc *Component) onPresence(c *xco.Component, p *xco.Presence) error {
+func (x *xmppProcess) onPresence(c *xco.Component, p *xco.Presence) error {
 	log.Printf("Presence: %+v", p)
 	return nil
 }
 
-func (sc *Component) onIq(c *xco.Component, iq *xco.Iq) error {
+func (x *xmppProcess) onIq(c *xco.Component, iq *xco.Iq) error {
 	log.Printf("Iq: %+v", iq)
 	return nil
 }
 
-func (sc *Component) onUnknown(c *xco.Component, x *xml.StartElement) error {
-	log.Printf("Unknown: %+v", x)
+func (x *xmppProcess) onUnknown(c *xco.Component, start *xml.StartElement) error {
+	log.Printf("Unknown: %+v", start)
 	return nil
 }
 
