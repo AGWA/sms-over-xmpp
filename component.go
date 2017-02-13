@@ -100,7 +100,7 @@ func (sc *Component) runGatewayProcess() <-chan struct{} {
 	return healthCh
 }
 
-// runHttpProcess starts the HTTP agent
+// runHttpProcess starts the HTTP process
 func (sc *Component) runHttpProcess() <-chan struct{} {
 	config := sc.config
 
