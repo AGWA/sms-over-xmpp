@@ -17,21 +17,25 @@ import (
 // converts those communications into values which the rest of the
 // system can understand.
 type xmppProcess struct {
+	// where to connect to the XMPP server
+	host string
+	port int
+
+	// credentials for XMPP auth
+	name   string
+	secret string
 }
 
 // runXmppComponent creates a goroutine for sending and receiving XMPP
-// stanzas.  it returns a channel for monitoring the goroutine's health.
-// if that channel closes, the XMPP goroutine has died.
-func (sc *Component) runXmppComponent() <-chan struct{} {
-	config := sc.config
+// stanzas.  it returns a channel for monitoring the goroutine's
+// health.  if that channel closes, the XMPP process has died.
+func (sc *Component) runXmppComponent(x *xmppProcess) <-chan struct{} {
 	opts := xco.Options{
-		Name:         config.ComponentName(),
-		SharedSecret: config.SharedSecret(),
-		Address:      fmt.Sprintf("%s:%d", config.XmppHost(), config.XmppPort()),
+		Name:         x.name,
+		SharedSecret: x.secret,
+		Address:      fmt.Sprintf("%s:%d", x.host, x.port),
 		Logger:       log.New(os.Stderr, "", log.LstdFlags),
 	}
-
-	x := &xmppProcess{}
 
 	healthCh := make(chan struct{})
 	go func() {

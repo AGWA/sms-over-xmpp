@@ -51,7 +51,7 @@ func Main(config Config) {
 
 	// start processes running
 	gatewayDead := sc.runGatewayProcess()
-	xmppDead := sc.runXmppComponent()
+	xmppDead := sc.runXmppProcess()
 	httpDead := sc.runHttpProcess()
 
 	for {
@@ -65,7 +65,7 @@ func Main(config Config) {
 		case _ = <-xmppDead:
 			log.Printf("XMPP died. Restarting")
 			time.Sleep(1 * time.Second) // don't hammer server
-			xmppDead = sc.runXmppComponent()
+			xmppDead = sc.runXmppProcess()
 		}
 	}
 }
@@ -122,4 +122,15 @@ func (sc *Component) runHttpProcess() <-chan struct{} {
 		http.password = cfg.HttpPassword()
 	}
 	return http.run()
+}
+
+// runXmppProcess starts the XMPP process
+func (sc *Component) runXmppProcess() <-chan struct{} {
+	x := &xmppProcess{
+		host:   sc.config.XmppHost(),
+		port:   sc.config.XmppPort(),
+		name:   sc.config.ComponentName(),
+		secret: sc.config.SharedSecret(),
+	}
+	return sc.runXmppComponent(x)
 }
