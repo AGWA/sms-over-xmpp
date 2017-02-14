@@ -24,6 +24,9 @@ type xmppProcess struct {
 	// credentials for XMPP auth
 	name   string
 	secret string
+
+	// channel for sending XMPP stanzas to server
+	tx chan<- interface{}
 }
 
 // runXmppComponent creates a goroutine for sending and receiving XMPP
@@ -47,14 +50,44 @@ func (sc *Component) runXmppComponent(x *xmppProcess) <-chan struct{} {
 			return
 		}
 
-		c.MessageHandler = sc.onMessage
-		c.DiscoInfoHandler = x.onDiscoInfo
-		c.PresenceHandler = x.onPresence
-		c.IqHandler = x.onIq
-		c.UnknownHandler = x.onUnknown
 		sc.setXmpp(c)
+		tx, rx, errx := c.RunAsync()
+		x.tx = tx
+		for {
+			select {
+			case stanza := <-rx:
+				switch st := stanza.(type) {
+				case *xco.Message:
+					err = sc.onMessage(c, st)
+				case *xco.Presence:
+					log.Printf("Presence: %+v", st)
+				case *xco.Iq:
+					if st.IsDiscoInfo() {
+						var ids []xco.DiscoIdentity
+						var features []xco.DiscoFeature
+						ids, features, err = x.onDiscoInfo(st)
+						if err == nil {
+							st, err = st.DiscoInfoReply(ids, features)
+							if err == nil {
+								go func() { tx <- st }()
+							}
+						}
+					} else {
+						log.Printf("Iq: %+v", st)
+					}
+				case *xml.StartElement:
+					log.Printf("Unknown: %+v", st)
+				default:
+					panic(fmt.Sprintf("Unexpected stanza type: %#v", stanza))
+				}
+			case err = <-errx:
+			}
 
-		err = c.Run()
+			if err != nil {
+				break
+			}
+		}
+
 		log.Printf("lost XMPP connection: %s", err)
 	}()
 	return healthCh
@@ -144,7 +177,7 @@ func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
 	return nil
 }
 
-func (x *xmppProcess) onDiscoInfo(c *xco.Component, iq *xco.Iq) ([]xco.DiscoIdentity, []xco.DiscoFeature, error) {
+func (x *xmppProcess) onDiscoInfo(iq *xco.Iq) ([]xco.DiscoIdentity, []xco.DiscoFeature, error) {
 	log.Printf("Disco: %+v", iq)
 	ids := []xco.DiscoIdentity{
 		{
@@ -159,21 +192,6 @@ func (x *xmppProcess) onDiscoInfo(c *xco.Component, iq *xco.Iq) ([]xco.DiscoIden
 		},
 	}
 	return ids, features, nil
-}
-
-func (x *xmppProcess) onPresence(c *xco.Component, p *xco.Presence) error {
-	log.Printf("Presence: %+v", p)
-	return nil
-}
-
-func (x *xmppProcess) onIq(c *xco.Component, iq *xco.Iq) error {
-	log.Printf("Iq: %+v", iq)
-	return nil
-}
-
-func (x *xmppProcess) onUnknown(c *xco.Component, start *xml.StartElement) error {
-	log.Printf("Unknown: %+v", start)
-	return nil
 }
 
 // xmppSend sends a single XML stanza over the XMPP connection.  It
