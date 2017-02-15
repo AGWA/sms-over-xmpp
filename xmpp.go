@@ -58,7 +58,7 @@ func (sc *Component) runXmppComponent(x *xmppProcess) <-chan struct{} {
 			case stanza := <-rx:
 				switch st := stanza.(type) {
 				case *xco.Message:
-					err = sc.onMessage(c, st)
+					err = sc.onMessage(st)
 				case *xco.Presence:
 					log.Printf("Presence: %+v", st)
 				case *xco.Iq:
@@ -100,7 +100,7 @@ func (sc *Component) setXmpp(c *xco.Component) {
 	sc.xmpp = c
 }
 
-func (sc *Component) onMessage(c *xco.Component, m *xco.Message) error {
+func (sc *Component) onMessage(m *xco.Message) error {
 	log.Printf("Message: %+v", m)
 	if m.Body == "" {
 		log.Printf("  ignoring message with empty body")
