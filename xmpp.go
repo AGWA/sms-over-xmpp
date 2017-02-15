@@ -68,14 +68,11 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 				go func() { x.gatewayRx <- stanza }()
 			case *xco.Iq:
 				if stanza.IsDiscoInfo() {
-					var ids []xco.DiscoIdentity
-					var features []xco.DiscoFeature
-					ids, features, err = x.onDiscoInfo(stanza)
+					log.Printf("Disco: %+v", stanza)
+					ids, features := x.describeService()
+					stanza, err = stanza.DiscoInfoReply(ids, features)
 					if err == nil {
-						stanza, err = stanza.DiscoInfoReply(ids, features)
-						if err == nil {
-							go func() { tx <- stanza }()
-						}
+						go func() { tx <- stanza }()
 					}
 				} else {
 					log.Printf("Iq: %+v", stanza)
@@ -100,8 +97,7 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 	log.Printf("lost XMPP connection: %s", err)
 }
 
-func (x *xmppProcess) onDiscoInfo(iq *xco.Iq) ([]xco.DiscoIdentity, []xco.DiscoFeature, error) {
-	log.Printf("Disco: %+v", iq)
+func (x *xmppProcess) describeService() ([]xco.DiscoIdentity, []xco.DiscoFeature) {
 	ids := []xco.DiscoIdentity{
 		{
 			Category: "gateway",
@@ -114,7 +110,7 @@ func (x *xmppProcess) onDiscoInfo(iq *xco.Iq) ([]xco.DiscoIdentity, []xco.DiscoF
 			Var: "urn:xmpp:receipts",
 		},
 	}
-	return ids, features, nil
+	return ids, features
 }
 
 // NewId generates a random string which is suitable as an XMPP stanza
