@@ -28,16 +28,14 @@ type xmppProcess struct {
 	tx chan<- interface{}
 
 	// channels for communicating with the Gateway process
+	gatewayRx chan<- *xco.Message
 	gatewayTx <-chan *xco.Message
 }
 
 // runXmppComponent creates a goroutine for sending and receiving XMPP
 // stanzas.  it returns a channel for monitoring the goroutine's
 // health.  if that channel closes, the XMPP process has died.
-func (sc *Component) runXmppComponent(
-	x *xmppProcess,
-	gatewayRx chan<- *xco.Message,
-) <-chan struct{} {
+func (sc *Component) runXmppComponent(x *xmppProcess) <-chan struct{} {
 	opts := xco.Options{
 		Name:         x.name,
 		SharedSecret: x.secret,
@@ -67,7 +65,7 @@ func (sc *Component) runXmppComponent(
 						log.Printf("  ignoring message with empty body")
 						break
 					}
-					go func() { gatewayRx <- st }()
+					go func() { x.gatewayRx <- st }()
 				case *xco.Presence:
 					log.Printf("Presence: %+v", st)
 				case *xco.Iq:

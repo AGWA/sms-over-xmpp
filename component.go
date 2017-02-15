@@ -143,6 +143,7 @@ func (sc *Component) runXmppProcess() <-chan struct{} {
 		secret: sc.config.SharedSecret(),
 
 		gatewayTx: sc.txXmppCh,
+		gatewayRx: sc.rxXmppCh,
 	}
-	return sc.runXmppComponent(x, sc.rxXmppCh)
+	return sc.runXmppComponent(x)
 }
