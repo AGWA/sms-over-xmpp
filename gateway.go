@@ -50,8 +50,8 @@ func (sc *Component) sms2xmpp(sms *Sms) error {
 		Type: "chat",
 		Body: sms.Body,
 	}
-	err = sc.xmppSend(msg)
-	return errors.Wrap(err, "can't send message")
+	go func() { sc.txXmppCh <- msg }()
+	return nil
 }
 
 func (sc *Component) smsDelivered(smsId string) error {
@@ -59,10 +59,7 @@ func (sc *Component) smsDelivered(smsId string) error {
 	defer func() { sc.receiptForMutex.Unlock() }()
 
 	if receipt, ok := sc.receiptFor[smsId]; ok {
-		err := sc.xmppSend(receipt)
-		if err != nil {
-			return errors.Wrap(err, "sending SMS delivery receipt")
-		}
+		go func() { sc.txXmppCh <- receipt }()
 		log.Printf("Sent SMS delivery receipt")
 		delete(sc.receiptFor, smsId)
 	}

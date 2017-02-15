@@ -18,14 +18,6 @@ var ErrIgnoreMessage = errors.New("ignore this message")
 type Component struct {
 	config Config
 
-	// xmpp is the XMPP component which handles all interactions
-	// with an XMPP server.
-	xmpp *xco.Component
-
-	// xmppMutex serializes access to the XMPP component to avoid
-	// collisions while talking to the XMPP server.
-	xmppMutex sync.Mutex
-
 	// receiptFor contains message delivery receipts that
 	// haven't been delivered yet.  the key is a provider's outgoing
 	// SMS identifier.  the value is the delivery receipt that we should deliver
@@ -45,6 +37,10 @@ type Component struct {
 	// (Iq, Presence, etc) since those are handled inside the XMPP
 	// process.
 	rxXmppCh chan *xco.Message
+
+	// txXmppCh is a channel connecting Gateway->XMPP. It communicates
+	// outgoing XMPP messages.
+	txXmppCh chan *xco.Message
 }
 
 // Main runs a component using the given configuration.  It's the main
@@ -55,6 +51,7 @@ func Main(config Config) {
 	sc.receiptFor = make(map[string]*xco.Message)
 	sc.rxSmsCh = make(chan rxSms)
 	sc.rxXmppCh = make(chan *xco.Message)
+	sc.txXmppCh = make(chan *xco.Message)
 
 	// start processes running
 	gatewayDead := sc.runGatewayProcess()
@@ -144,6 +141,8 @@ func (sc *Component) runXmppProcess() <-chan struct{} {
 		port:   sc.config.XmppPort(),
 		name:   sc.config.ComponentName(),
 		secret: sc.config.SharedSecret(),
+
+		gatewayTx: sc.txXmppCh,
 	}
 	return sc.runXmppComponent(x, sc.rxXmppCh)
 }

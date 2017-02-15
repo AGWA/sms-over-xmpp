@@ -26,6 +26,9 @@ type xmppProcess struct {
 
 	// channel for sending XMPP stanzas to server
 	tx chan<- interface{}
+
+	// channels for communicating with the Gateway process
+	gatewayTx <-chan *xco.Message
 }
 
 // runXmppComponent creates a goroutine for sending and receiving XMPP
@@ -52,7 +55,6 @@ func (sc *Component) runXmppComponent(
 			return
 		}
 
-		sc.setXmpp(c)
 		tx, rx, errx := c.RunAsync()
 		x.tx = tx
 		for {
@@ -87,6 +89,8 @@ func (sc *Component) runXmppComponent(
 				default:
 					panic(fmt.Sprintf("Unexpected stanza type: %#v", stanza))
 				}
+			case stanza := <-x.gatewayTx:
+				go func() { tx <- stanza }()
 			case err = <-errx:
 			}
 
@@ -98,13 +102,6 @@ func (sc *Component) runXmppComponent(
 		log.Printf("lost XMPP connection: %s", err)
 	}()
 	return healthCh
-}
-
-func (sc *Component) setXmpp(c *xco.Component) {
-	sc.xmppMutex.Lock()
-	defer func() { sc.xmppMutex.Unlock() }()
-
-	sc.xmpp = c
 }
 
 func (x *xmppProcess) onDiscoInfo(iq *xco.Iq) ([]xco.DiscoIdentity, []xco.DiscoFeature, error) {
@@ -122,15 +119,6 @@ func (x *xmppProcess) onDiscoInfo(iq *xco.Iq) ([]xco.DiscoIdentity, []xco.DiscoF
 		},
 	}
 	return ids, features, nil
-}
-
-// xmppSend sends a single XML stanza over the XMPP connection.  It
-// serializes concurrent access to avoid collisions on the wire.
-func (sc *Component) xmppSend(msg interface{}) error {
-	sc.xmppMutex.Lock()
-	defer func() { sc.xmppMutex.Unlock() }()
-
-	return sc.xmpp.Send(msg)
 }
 
 // NewId generates a random string which is suitable as an XMPP stanza
