@@ -13,8 +13,8 @@ import (
 )
 
 // xmppProcess is the piece which interacts with the XMPP network and
-// converts those communications into values which the rest of the
-// system can understand.
+// converts those communications into values which the rest of
+// sms-over-xmpp can understand.
 type xmppProcess struct {
 	// where to connect to the XMPP server
 	host string
@@ -44,62 +44,64 @@ func (x *xmppProcess) run() <-chan struct{} {
 	}
 
 	healthCh := make(chan struct{})
-	go func() {
-		defer func() { close(healthCh) }()
-
-		c, err := xco.NewComponent(opts)
-		if err != nil {
-			log.Printf("can't create internal XMPP component: %s", err)
-			return
-		}
-
-		tx, rx, errx := c.RunAsync()
-		x.tx = tx
-		for {
-			select {
-			case stanza := <-rx:
-				switch st := stanza.(type) {
-				case *xco.Message:
-					log.Printf("Message: %+v", st)
-					if st.Body == "" {
-						log.Printf("  ignoring message with empty body")
-						break
-					}
-					go func() { x.gatewayRx <- st }()
-				case *xco.Presence:
-					log.Printf("Presence: %+v", st)
-				case *xco.Iq:
-					if st.IsDiscoInfo() {
-						var ids []xco.DiscoIdentity
-						var features []xco.DiscoFeature
-						ids, features, err = x.onDiscoInfo(st)
-						if err == nil {
-							st, err = st.DiscoInfoReply(ids, features)
-							if err == nil {
-								go func() { tx <- st }()
-							}
-						}
-					} else {
-						log.Printf("Iq: %+v", st)
-					}
-				case *xml.StartElement:
-					log.Printf("Unknown: %+v", st)
-				default:
-					panic(fmt.Sprintf("Unexpected stanza type: %#v", stanza))
-				}
-			case stanza := <-x.gatewayTx:
-				go func() { tx <- stanza }()
-			case err = <-errx:
-			}
-
-			if err != nil {
-				break
-			}
-		}
-
-		log.Printf("lost XMPP connection: %s", err)
-	}()
+	go x.loop(opts, healthCh)
 	return healthCh
+}
+
+func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
+	defer func() { close(healthCh) }()
+
+	c, err := xco.NewComponent(opts)
+	if err != nil {
+		log.Printf("can't create internal XMPP component: %s", err)
+		return
+	}
+
+	tx, rx, errx := c.RunAsync()
+	x.tx = tx
+	for {
+		select {
+		case stanza := <-rx:
+			switch st := stanza.(type) {
+			case *xco.Message:
+				log.Printf("Message: %+v", st)
+				if st.Body == "" {
+					log.Printf("  ignoring message with empty body")
+					break
+				}
+				go func() { x.gatewayRx <- st }()
+			case *xco.Presence:
+				log.Printf("Presence: %+v", st)
+			case *xco.Iq:
+				if st.IsDiscoInfo() {
+					var ids []xco.DiscoIdentity
+					var features []xco.DiscoFeature
+					ids, features, err = x.onDiscoInfo(st)
+					if err == nil {
+						st, err = st.DiscoInfoReply(ids, features)
+						if err == nil {
+							go func() { tx <- st }()
+						}
+					}
+				} else {
+					log.Printf("Iq: %+v", st)
+				}
+			case *xml.StartElement:
+				log.Printf("Unknown: %+v", st)
+			default:
+				panic(fmt.Sprintf("Unexpected stanza type: %#v", stanza))
+			}
+		case stanza := <-x.gatewayTx:
+			go func() { tx <- stanza }()
+		case err = <-errx:
+		}
+
+		if err != nil {
+			break
+		}
+	}
+
+	log.Printf("lost XMPP connection: %s", err)
 }
 
 func (x *xmppProcess) onDiscoInfo(iq *xco.Iq) ([]xco.DiscoIdentity, []xco.DiscoFeature, error) {
