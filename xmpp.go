@@ -57,35 +57,35 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 	tx, rx, errx := c.RunAsync()
 	for {
 		select {
-		case stanza := <-rx:
-			switch st := stanza.(type) {
+		case st := <-rx:
+			switch stanza := st.(type) {
 			case *xco.Message:
-				log.Printf("Message: %+v", st)
-				if st.Body == "" {
+				log.Printf("Message: %+v", stanza)
+				if stanza.Body == "" {
 					log.Printf("  ignoring message with empty body")
 					break
 				}
-				go func() { x.gatewayRx <- st }()
+				go func() { x.gatewayRx <- stanza }()
 			case *xco.Presence:
-				log.Printf("Presence: %+v", st)
+				log.Printf("Presence: %+v", stanza)
 			case *xco.Iq:
-				if st.IsDiscoInfo() {
+				if stanza.IsDiscoInfo() {
 					var ids []xco.DiscoIdentity
 					var features []xco.DiscoFeature
-					ids, features, err = x.onDiscoInfo(st)
+					ids, features, err = x.onDiscoInfo(stanza)
 					if err == nil {
-						st, err = st.DiscoInfoReply(ids, features)
+						stanza, err = stanza.DiscoInfoReply(ids, features)
 						if err == nil {
-							go func() { tx <- st }()
+							go func() { tx <- stanza }()
 						}
 					}
 				} else {
-					log.Printf("Iq: %+v", st)
+					log.Printf("Iq: %+v", stanza)
 				}
 			case *xml.StartElement:
-				log.Printf("Unknown: %+v", st)
+				log.Printf("Unknown: %+v", stanza)
 			default:
-				panic(fmt.Sprintf("Unexpected stanza type: %#v", stanza))
+				panic(fmt.Sprintf("Unexpected stanza type: %#v", st))
 			}
 		case stanza := <-x.gatewayTx:
 			go func() { tx <- stanza }()
