@@ -58,6 +58,11 @@ func (sc *Component) runXmppComponent(x *xmppProcess) <-chan struct{} {
 			case stanza := <-rx:
 				switch st := stanza.(type) {
 				case *xco.Message:
+					log.Printf("Message: %+v", st)
+					if st.Body == "" {
+						log.Printf("  ignoring message with empty body")
+						break
+					}
 					err = sc.onMessage(st)
 				case *xco.Presence:
 					log.Printf("Presence: %+v", st)
@@ -101,12 +106,6 @@ func (sc *Component) setXmpp(c *xco.Component) {
 }
 
 func (sc *Component) onMessage(m *xco.Message) error {
-	log.Printf("Message: %+v", m)
-	if m.Body == "" {
-		log.Printf("  ignoring message with empty body")
-		return nil
-	}
-
 	// convert recipient address into a phone number
 	toPhone, err := sc.config.AddressToPhone(m.To)
 	switch err {
