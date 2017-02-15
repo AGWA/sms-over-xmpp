@@ -1,7 +1,10 @@
 package sms // import "github.com/mndrix/sms-over-xmpp"
 import (
+	"crypto/rand"
+	"encoding/base32"
 	"encoding/xml"
 	"log"
+	"strings"
 
 	xco "github.com/mndrix/go-xco"
 	"github.com/pkg/errors"
@@ -135,4 +138,19 @@ func (sc *Component) xmpp2sms(m *xco.Message) error {
 	}
 
 	return nil
+}
+
+// NewId generates a random string which is suitable as an XMPP stanza
+// ID.  The string contains enough entropy to be universally unique.
+func NewId() string {
+	// generate 128 random bits (6 more than standard UUID)
+	bytes := make([]byte, 16)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		panic(err)
+	}
+
+	// convert them to base 32 encoding
+	s := base32.StdEncoding.EncodeToString(bytes)
+	return strings.ToLower(strings.TrimRight(s, "="))
 }
