@@ -35,7 +35,7 @@ type xmppProcess struct {
 // runXmppComponent creates a goroutine for sending and receiving XMPP
 // stanzas.  it returns a channel for monitoring the goroutine's
 // health.  if that channel closes, the XMPP process has died.
-func (sc *Component) runXmppComponent(x *xmppProcess) <-chan struct{} {
+func (x *xmppProcess) run() <-chan struct{} {
 	opts := xco.Options{
 		Name:         x.name,
 		SharedSecret: x.secret,

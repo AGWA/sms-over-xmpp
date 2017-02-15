@@ -145,5 +145,5 @@ func (sc *Component) runXmppProcess() <-chan struct{} {
 		gatewayTx: sc.txXmppCh,
 		gatewayRx: sc.rxXmppCh,
 	}
-	return sc.runXmppComponent(x)
+	return x.run()
 }
