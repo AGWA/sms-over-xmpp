@@ -66,8 +66,6 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 					break
 				}
 				go func() { x.gatewayRx <- stanza }()
-			case *xco.Presence:
-				log.Printf("Presence: %+v", stanza)
 			case *xco.Iq:
 				if stanza.IsDiscoInfo() {
 					var ids []xco.DiscoIdentity
@@ -82,6 +80,8 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 				} else {
 					log.Printf("Iq: %+v", stanza)
 				}
+			case *xco.Presence:
+				log.Printf("Presence: %+v", stanza)
 			case *xml.StartElement:
 				log.Printf("Unknown: %+v", stanza)
 			default:
