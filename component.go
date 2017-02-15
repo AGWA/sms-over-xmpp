@@ -39,6 +39,12 @@ type Component struct {
 	// information received about SMS (a message, a status update,
 	// etc.)
 	rxSmsCh chan rxSms
+
+	// rxXmppCh is a channel connecting XMPP->Gateway. It communicates
+	// incoming XMPP messages.  It doesn't carry other XMPP stanzas
+	// (Iq, Presence, etc) since those are handled inside the XMPP
+	// process.
+	rxXmppCh chan *xco.Message
 }
 
 // Main runs a component using the given configuration.  It's the main
@@ -48,6 +54,7 @@ func Main(config Config) {
 	sc := &Component{config: config}
 	sc.receiptFor = make(map[string]*xco.Message)
 	sc.rxSmsCh = make(chan rxSms)
+	sc.rxXmppCh = make(chan *xco.Message)
 
 	// start processes running
 	gatewayDead := sc.runGatewayProcess()
@@ -74,7 +81,7 @@ func Main(config Config) {
 // the HTTP and XMPP processes.
 func (sc *Component) runGatewayProcess() <-chan struct{} {
 	healthCh := make(chan struct{})
-	go func(rxSmsCh <-chan rxSms) {
+	go func(rxSmsCh <-chan rxSms, rxXmppCh <-chan *xco.Message) {
 		defer func() { close(healthCh) }()
 
 		for {
@@ -94,9 +101,15 @@ func (sc *Component) runGatewayProcess() <-chan struct{} {
 				default:
 					log.Panicf("unexpected rxSms type: %#v", rxSms)
 				}
+			case msg := <-rxXmppCh:
+				err := sc.xmpp2sms(msg)
+				if err != nil {
+					log.Printf("ERROR: converting XMPP to SMS: %s", err)
+					return
+				}
 			}
 		}
-	}(sc.rxSmsCh)
+	}(sc.rxSmsCh, sc.rxXmppCh)
 	return healthCh
 }
 
@@ -132,5 +145,5 @@ func (sc *Component) runXmppProcess() <-chan struct{} {
 		name:   sc.config.ComponentName(),
 		secret: sc.config.SharedSecret(),
 	}
-	return sc.runXmppComponent(x)
+	return sc.runXmppComponent(x, sc.rxXmppCh)
 }
