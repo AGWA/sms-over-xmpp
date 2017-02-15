@@ -24,9 +24,6 @@ type xmppProcess struct {
 	name   string
 	secret string
 
-	// channel for sending XMPP stanzas to server
-	tx chan<- interface{}
-
 	// channels for communicating with the Gateway process
 	gatewayRx chan<- *xco.Message
 	gatewayTx <-chan *xco.Message
@@ -58,7 +55,6 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 	}
 
 	tx, rx, errx := c.RunAsync()
-	x.tx = tx
 	for {
 		select {
 		case stanza := <-rx:
