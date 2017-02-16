@@ -62,49 +62,33 @@ func (g *gatewayProcess) loop(healthCh chan<- struct{}) {
 }
 
 func (g *gatewayProcess) sms2xmpp(sms *Sms) error {
-
-	// convert author's phone number into XMPP address
-	from, err := g.config.PhoneToAddress(sms.From)
-	switch err {
-	case nil:
-		// all is well. proceed
-	case ErrIgnoreMessage:
-		msg := "ignored based on From address"
-		log.Println(msg)
-		return nil
-	default:
-		return errors.Wrap(err, "From address "+sms.From)
-	}
-
-	// convert recipient's phone number into XMPP address
-	to, err := g.config.PhoneToAddress(sms.To)
-	switch err {
-	case nil:
-		// all is well. proceed
-	case ErrIgnoreMessage:
-		msg := "ignored based on To address"
-		log.Println(msg)
-		return nil
-	default:
-		return errors.Wrap(err, "To address "+sms.To)
-	}
-
-	// deliver message over XMPP
+	var err error
 	msg := &xco.Message{
 		XMLName: xml.Name{
 			Local: "message",
 			Space: "jabber:component:accept",
 		},
-
 		Header: xco.Header{
-			From: from,
-			To:   to,
-			ID:   NewId(),
+			ID: NewId(),
 		},
 		Type: "chat",
 		Body: sms.Body,
 	}
-	go func() { g.xmppTx <- msg }()
+
+	// convert author's phone number into XMPP address
+	msg.Header.From, err = g.config.PhoneToAddress(sms.From)
+	if err == nil {
+		msg.Header.To, err = g.config.PhoneToAddress(sms.To)
+	}
+	switch err {
+	case nil:
+		go func() { g.xmppTx <- msg }()
+	case ErrIgnoreMessage:
+		log.Println("ignoring message based on phone number")
+	default:
+		return errors.Wrap(err, "sms2xmpp")
+	}
+
 	return nil
 }
 
