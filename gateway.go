@@ -33,21 +33,24 @@ func (g *gatewayProcess) loop(healthCh chan<- struct{}) {
 	for {
 		select {
 		case rxSms := <-g.smsRx:
+			var err error
 			errCh := rxSms.ErrCh()
+
 			switch x := rxSms.(type) {
 			case *rxSmsMessage:
-				errCh <- g.sms2xmpp(x.sms)
+				err = g.sms2xmpp(x.sms)
 			case *rxSmsStatus:
 				switch x.status {
 				case smsDelivered:
-					err := g.smsDelivered(x.id)
-					go func() { errCh <- err }()
+					err = g.smsDelivered(x.id)
 				default:
 					log.Panicf("unexpected SMS status: %d", x.status)
 				}
 			default:
 				log.Panicf("unexpected rxSms type: %#v", rxSms)
 			}
+
+			go func() { errCh <- err }()
 		case msg := <-g.xmppRx:
 			err := g.xmpp2sms(msg)
 			if err != nil {
