@@ -10,10 +10,58 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (sc *Component) sms2xmpp(sms *Sms) error {
+// gatewayProcess is the piece which sits between the XMPP and HTTP
+// processes, translating between their different protocols.
+type gatewayProcess struct {
+	// fields shared with Component. see docs there
+	config     Config
+	receiptFor map[string]*xco.Message
+	smsRx      <-chan rxSms
+	xmppRx     <-chan *xco.Message
+	xmppTx     chan<- *xco.Message
+}
+
+func (g *gatewayProcess) run() <-chan struct{} {
+	healthCh := make(chan struct{})
+	go g.loop(healthCh)
+	return healthCh
+}
+
+func (g *gatewayProcess) loop(healthCh chan<- struct{}) {
+	defer func() { close(healthCh) }()
+
+	for {
+		select {
+		case rxSms := <-g.smsRx:
+			errCh := rxSms.ErrCh()
+			switch x := rxSms.(type) {
+			case *rxSmsMessage:
+				errCh <- g.sms2xmpp(x.sms)
+			case *rxSmsStatus:
+				switch x.status {
+				case smsDelivered:
+					err := g.smsDelivered(x.id)
+					go func() { errCh <- err }()
+				default:
+					log.Panicf("unexpected SMS status: %d", x.status)
+				}
+			default:
+				log.Panicf("unexpected rxSms type: %#v", rxSms)
+			}
+		case msg := <-g.xmppRx:
+			err := g.xmpp2sms(msg)
+			if err != nil {
+				log.Printf("ERROR: converting XMPP to SMS: %s", err)
+				return
+			}
+		}
+	}
+}
+
+func (g *gatewayProcess) sms2xmpp(sms *Sms) error {
 
 	// convert author's phone number into XMPP address
-	from, err := sc.config.PhoneToAddress(sms.From)
+	from, err := g.config.PhoneToAddress(sms.From)
 	switch err {
 	case nil:
 		// all is well. proceed
@@ -26,7 +74,7 @@ func (sc *Component) sms2xmpp(sms *Sms) error {
 	}
 
 	// convert recipient's phone number into XMPP address
-	to, err := sc.config.PhoneToAddress(sms.To)
+	to, err := g.config.PhoneToAddress(sms.To)
 	switch err {
 	case nil:
 		// all is well. proceed
@@ -53,25 +101,22 @@ func (sc *Component) sms2xmpp(sms *Sms) error {
 		Type: "chat",
 		Body: sms.Body,
 	}
-	go func() { sc.txXmppCh <- msg }()
+	go func() { g.xmppTx <- msg }()
 	return nil
 }
 
-func (sc *Component) smsDelivered(smsId string) error {
-	sc.receiptForMutex.Lock()
-	defer func() { sc.receiptForMutex.Unlock() }()
-
-	if receipt, ok := sc.receiptFor[smsId]; ok {
-		go func() { sc.txXmppCh <- receipt }()
+func (g *gatewayProcess) smsDelivered(smsId string) error {
+	if receipt, ok := g.receiptFor[smsId]; ok {
+		go func() { g.xmppTx <- receipt }()
 		log.Printf("Sent SMS delivery receipt")
-		delete(sc.receiptFor, smsId)
+		delete(g.receiptFor, smsId)
 	}
 	return nil
 }
 
-func (sc *Component) xmpp2sms(m *xco.Message) error {
+func (g *gatewayProcess) xmpp2sms(m *xco.Message) error {
 	// convert recipient address into a phone number
-	toPhone, err := sc.config.AddressToPhone(m.To)
+	toPhone, err := g.config.AddressToPhone(m.To)
 	switch err {
 	case nil:
 		// all is well. we'll continue below
@@ -82,7 +127,7 @@ func (sc *Component) xmpp2sms(m *xco.Message) error {
 	}
 
 	// convert author's address into a phone number
-	fromPhone, err := sc.config.AddressToPhone(m.From)
+	fromPhone, err := g.config.AddressToPhone(m.From)
 	switch err {
 	case nil:
 		// all is well. we'll continue below
@@ -93,7 +138,7 @@ func (sc *Component) xmpp2sms(m *xco.Message) error {
 	}
 
 	// choose an SMS provider
-	provider, err := sc.config.SmsProvider()
+	provider, err := g.config.SmsProvider()
 	switch err {
 	case nil:
 		// all is well. we'll continue below
@@ -127,13 +172,11 @@ func (sc *Component) xmpp2sms(m *xco.Message) error {
 			},
 			XMLName: m.XMLName,
 		}
-		sc.receiptForMutex.Lock()
-		defer func() { sc.receiptForMutex.Unlock() }()
-		if len(sc.receiptFor) > 10 { // don't get too big
+		if len(g.receiptFor) > 10 { // don't get too big
 			log.Printf("clearing pending receipts queue")
-			sc.receiptFor = make(map[string]*xco.Message)
+			g.receiptFor = make(map[string]*xco.Message)
 		}
-		sc.receiptFor[id] = &receipt
+		g.receiptFor[id] = &receipt
 		log.Printf("Waiting to send receipt: %#v", receipt)
 	}
 

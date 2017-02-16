@@ -77,37 +77,15 @@ func Main(config Config) {
 // runGatewayProcess starts the Gateway process. it translates between
 // the HTTP and XMPP processes.
 func (sc *Component) runGatewayProcess() <-chan struct{} {
-	healthCh := make(chan struct{})
-	go func(rxSmsCh <-chan rxSms, rxXmppCh <-chan *xco.Message) {
-		defer func() { close(healthCh) }()
-
-		for {
-			select {
-			case rxSms := <-rxSmsCh:
-				errCh := rxSms.ErrCh()
-				switch x := rxSms.(type) {
-				case *rxSmsMessage:
-					errCh <- sc.sms2xmpp(x.sms)
-				case *rxSmsStatus:
-					switch x.status {
-					case smsDelivered:
-						errCh <- sc.smsDelivered(x.id)
-					default:
-						log.Panicf("unexpected SMS status: %d", x.status)
-					}
-				default:
-					log.Panicf("unexpected rxSms type: %#v", rxSms)
-				}
-			case msg := <-rxXmppCh:
-				err := sc.xmpp2sms(msg)
-				if err != nil {
-					log.Printf("ERROR: converting XMPP to SMS: %s", err)
-					return
-				}
-			}
-		}
-	}(sc.rxSmsCh, sc.rxXmppCh)
-	return healthCh
+	gateway := &gatewayProcess{
+		// as long as it's alive, Gateway owns these values
+		config:     sc.config,
+		receiptFor: sc.receiptFor,
+		smsRx:      sc.rxSmsCh,
+		xmppRx:     sc.rxXmppCh,
+		xmppTx:     sc.txXmppCh,
+	}
+	return gateway.run()
 }
 
 // runHttpProcess starts the HTTP process
