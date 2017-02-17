@@ -102,26 +102,21 @@ func (g *gatewayProcess) smsDelivered(smsId string) error {
 }
 
 func (g *gatewayProcess) xmpp2sms(m *xco.Message) error {
-	// convert recipient address into a phone number
-	toPhone, err := g.config.AddressToPhone(m.To)
-	switch err {
-	case nil:
-		// all is well. we'll continue below
-	case ErrIgnoreMessage:
-		return nil
-	default:
-		return errors.Wrap(err, "converting 'to' address to phone")
-	}
+	var err error
+	sms := &Sms{Body: m.Body}
 
-	// convert author's address into a phone number
-	fromPhone, err := g.config.AddressToPhone(m.From)
+	sms.To, err = g.config.AddressToPhone(m.To)
+	if err == nil {
+		sms.From, err = g.config.AddressToPhone(m.From)
+	}
 	switch err {
 	case nil:
 		// all is well. we'll continue below
 	case ErrIgnoreMessage:
+		log.Println("ignoring message based on jid")
 		return nil
 	default:
-		return errors.Wrap(err, "converting 'from' address to phone")
+		return errors.Wrap(err, "xmpp2sms")
 	}
 
 	// choose an SMS provider
@@ -136,11 +131,7 @@ func (g *gatewayProcess) xmpp2sms(m *xco.Message) error {
 	}
 
 	// send the message
-	id, err := provider.SendSms(&Sms{
-		From: fromPhone,
-		To:   toPhone,
-		Body: m.Body,
-	})
+	id, err := provider.SendSms(sms)
 	if err != nil {
 		return errors.Wrap(err, "sending SMS")
 	}
