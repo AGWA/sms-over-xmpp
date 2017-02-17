@@ -27,7 +27,7 @@ type Component struct {
 	// receiptForMutex serializes acces to the receiptFor structure
 	receiptForMutex sync.Mutex
 
-	// rxSmsCh is a channel connecting HTTP->gateway.  It communicates
+	// rxSmsCh is a channel connecting PSTN->Gateway.  It communicates
 	// information received about SMS (a message, a status update,
 	// etc.)
 	rxSmsCh chan rxSms
@@ -56,16 +56,16 @@ func Main(config Config) {
 	// start processes running
 	gatewayDead := sc.runGatewayProcess()
 	xmppDead := sc.runXmppProcess()
-	httpDead := sc.runHttpProcess()
+	pstnDead := sc.runPstnProcess()
 
 	for {
 		select {
 		case _ = <-gatewayDead:
 			log.Printf("Gateway died. Restarting")
 			gatewayDead = sc.runGatewayProcess()
-		case _ = <-httpDead:
-			log.Printf("HTTP died. Restarting")
-			httpDead = sc.runHttpProcess()
+		case _ = <-pstnDead:
+			log.Printf("PSTN died. Restarting")
+			pstnDead = sc.runPstnProcess()
 		case _ = <-xmppDead:
 			log.Printf("XMPP died. Restarting")
 			time.Sleep(1 * time.Second) // don't hammer server
@@ -75,7 +75,7 @@ func Main(config Config) {
 }
 
 // runGatewayProcess starts the Gateway process. it translates between
-// the HTTP and XMPP processes.
+// the PSTN and XMPP processes.
 func (sc *Component) runGatewayProcess() <-chan struct{} {
 	gateway := &gatewayProcess{
 		// as long as it's alive, Gateway owns these values
@@ -88,8 +88,8 @@ func (sc *Component) runGatewayProcess() <-chan struct{} {
 	return gateway.run()
 }
 
-// runHttpProcess starts the HTTP process
-func (sc *Component) runHttpProcess() <-chan struct{} {
+// runPstnProcess starts the PSTN process
+func (sc *Component) runPstnProcess() <-chan struct{} {
 	config := sc.config
 
 	// choose an SMS provider
@@ -99,17 +99,17 @@ func (sc *Component) runHttpProcess() <-chan struct{} {
 		panic(msg)
 	}
 
-	http := &httpProcess{
+	pstn := &pstnProcess{
 		host:     config.HttpHost(),
 		port:     config.HttpPort(),
 		provider: provider,
 		rxSmsCh:  sc.rxSmsCh,
 	}
 	if cfg, ok := config.(CanHttpAuth); ok {
-		http.user = cfg.HttpUsername()
-		http.password = cfg.HttpPassword()
+		pstn.user = cfg.HttpUsername()
+		pstn.password = cfg.HttpPassword()
 	}
-	return http.run()
+	return pstn.run()
 }
 
 // runXmppProcess starts the XMPP process

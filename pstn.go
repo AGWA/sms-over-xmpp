@@ -5,10 +5,10 @@ import (
 	"net/http"
 )
 
-// httpProcess is the piece which listens for incoming HTTP requests and
-// converts them into values which the rest of the system can
-// understand.
-type httpProcess struct {
+// pstnProcess is the piece which listens for incoming events from the
+// phone network (usually via HTTP requests) and converts them into
+// values which the rest of the system can understand.
+type pstnProcess struct {
 	// where to listen for incoming HTTP requests
 	host string
 	port int
@@ -24,10 +24,10 @@ type httpProcess struct {
 	rxSmsCh chan<- rxSms
 }
 
-// run creates a goroutine for receiving HTTP requests.  It returns a
+// run creates a goroutine for receiving PSTN events.  It returns a
 // channel for monitoring the goroutine's health.  If that channel
-// closes, the HTTP goroutine has died.
-func (h *httpProcess) run() <-chan struct{} {
+// closes, the PSTN goroutine has died.
+func (h *pstnProcess) run() <-chan struct{} {
 	addr := fmt.Sprintf("%s:%d", h.host, h.port)
 	healthCh := make(chan struct{})
 	go func() {
@@ -38,7 +38,7 @@ func (h *httpProcess) run() <-chan struct{} {
 	return healthCh
 }
 
-func (h *httpProcess) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *pstnProcess) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	msgSid := r.FormValue("MessageSid")
 	log.Printf("%s %s (%s)", r.Method, r.URL.Path, msgSid)
 
@@ -66,7 +66,7 @@ func (h *httpProcess) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *httpProcess) recognizeNotice(r *http.Request, errCh chan<- error) (rxSms, error) {
+func (h *pstnProcess) recognizeNotice(r *http.Request, errCh chan<- error) (rxSms, error) {
 	if p, ok := h.provider.(CanSmsStatus); ok {
 		if smsId, status, ok := p.SmsStatus(r); ok {
 			if status == "delivered" {
@@ -92,7 +92,7 @@ func (h *httpProcess) recognizeNotice(r *http.Request, errCh chan<- error) (rxSm
 	}
 }
 
-func (h *httpProcess) isHttpAuthenticated(r *http.Request) bool {
+func (h *pstnProcess) isHttpAuthenticated(r *http.Request) bool {
 	wantUser := h.user
 	wantPass := h.password
 	if wantUser == "" && wantPass == "" {
