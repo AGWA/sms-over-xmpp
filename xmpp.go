@@ -76,6 +76,13 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 				}
 			case *xco.Presence:
 				log.Printf("Presence: %+v", stanza)
+				switch stanza.Type {
+				case "subscribe", "unsubscribe":
+					stanza, err = x.handleSubscription(stanza)
+					if err == nil {
+						go func() { tx <- stanza }()
+					}
+				}
 			case *xml.StartElement:
 				log.Printf("Unknown: %+v", stanza)
 			default:
@@ -108,4 +115,25 @@ func (x *xmppProcess) describeService() ([]xco.DiscoIdentity, []xco.DiscoFeature
 		},
 	}
 	return ids, features
+}
+
+func (x *xmppProcess) handleSubscription(p *xco.Presence) (*xco.Presence, error) {
+	// RFC says to use full JIDs
+	p.Header.To.ResourcePart = ""
+	p.Header.From.ResourcePart = ""
+
+	stanza := &xco.Presence{
+		Header: xco.Header{
+			From: p.Header.To,
+			To:   p.Header.From,
+			ID:   NewId(),
+		},
+	}
+	switch p.Type {
+	case "subscribe":
+		stanza.Type = "subscribed"
+	case "unsubscribe":
+		stanza.Type = "unsubscribed"
+	}
+	return stanza, nil
 }
