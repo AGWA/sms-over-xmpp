@@ -77,6 +77,11 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 			case *xco.Presence:
 				log.Printf("Presence: %+v", stanza)
 				switch stanza.Type {
+				case "probe":
+					stanza, err = x.presenceAvailable(stanza)
+					if err == nil {
+						go func() { tx <- stanza }()
+					}
 				case "subscribe", "unsubscribe":
 					stanza, err = x.handleSubscription(stanza)
 					if err == nil {
@@ -115,6 +120,17 @@ func (x *xmppProcess) describeService() ([]xco.DiscoIdentity, []xco.DiscoFeature
 		},
 	}
 	return ids, features
+}
+
+func (x *xmppProcess) presenceAvailable(p *xco.Presence) (*xco.Presence, error) {
+	stanza := &xco.Presence{
+		Header: xco.Header{
+			From: p.Header.To,
+			To:   p.Header.From,
+			ID:   NewId(),
+		},
+	}
+	return stanza, nil
 }
 
 func (x *xmppProcess) handleSubscription(p *xco.Presence) (*xco.Presence, error) {
