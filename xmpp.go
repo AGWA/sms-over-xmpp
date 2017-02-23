@@ -83,9 +83,14 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 						go func() { tx <- stanza }()
 					}
 				case "subscribe", "unsubscribe":
-					stanza, err = x.handleSubscription(stanza)
+					var stanzas []*xco.Presence
+					stanzas, err = x.handleSubscription(stanza)
 					if err == nil {
-						go func() { tx <- stanza }()
+						go func() {
+							for _, stanza := range stanzas {
+								tx <- stanza
+							}
+						}()
 					}
 				}
 			case *xml.StartElement:
@@ -133,11 +138,14 @@ func (x *xmppProcess) presenceAvailable(p *xco.Presence) (*xco.Presence, error) 
 	return stanza, nil
 }
 
-func (x *xmppProcess) handleSubscription(p *xco.Presence) (*xco.Presence, error) {
+func (x *xmppProcess) handleSubscription(p *xco.Presence) ([]*xco.Presence, error) {
+	var err error
+
 	// RFC says to use full JIDs
 	p.Header.To.ResourcePart = ""
 	p.Header.From.ResourcePart = ""
 
+	stanzas := make([]*xco.Presence, 0, 2)
 	stanza := &xco.Presence{
 		Header: xco.Header{
 			From: p.Header.To,
@@ -148,8 +156,17 @@ func (x *xmppProcess) handleSubscription(p *xco.Presence) (*xco.Presence, error)
 	switch p.Type {
 	case "subscribe":
 		stanza.Type = "subscribed"
+		stanzas = append(stanzas, stanza)
+
+		// let user know that we're available
+		stanza, err = x.presenceAvailable(p)
 	case "unsubscribe":
 		stanza.Type = "unavailable"
 	}
-	return stanza, nil
+	stanzas = append(stanzas, stanza)
+
+	if err != nil {
+		return nil, err
+	}
+	return stanzas, nil
 }
