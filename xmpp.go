@@ -149,7 +149,7 @@ func (x *xmppProcess) handleSubscription(p *xco.Presence) (*xco.Presence, error)
 	case "subscribe":
 		stanza.Type = "subscribed"
 	case "unsubscribe":
-		stanza.Type = "unsubscribed"
+		stanza.Type = "unavailable"
 	}
 	return stanza, nil
 }
