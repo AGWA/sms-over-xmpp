@@ -78,20 +78,15 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 				log.Printf("Presence: %+v", stanza)
 				switch stanza.Type {
 				case "probe":
-					stanza, err = x.presenceAvailable(stanza)
-					if err == nil {
-						go func() { tx <- stanza }()
-					}
+					stanza = x.presenceAvailable(stanza)
+					go func() { tx <- stanza }()
 				case "subscribe", "unsubscribe":
-					var stanzas []*xco.Presence
-					stanzas, err = x.handleSubscription(stanza)
-					if err == nil {
-						go func() {
-							for _, stanza := range stanzas {
-								tx <- stanza
-							}
-						}()
-					}
+					stanzas := x.handleSubscription(stanza)
+					go func() {
+						for _, stanza := range stanzas {
+							tx <- stanza
+						}
+					}()
 				}
 			case *xml.StartElement:
 				log.Printf("Unknown: %+v", stanza)
@@ -127,7 +122,7 @@ func (x *xmppProcess) describeService() ([]xco.DiscoIdentity, []xco.DiscoFeature
 	return ids, features
 }
 
-func (x *xmppProcess) presenceAvailable(p *xco.Presence) (*xco.Presence, error) {
+func (x *xmppProcess) presenceAvailable(p *xco.Presence) *xco.Presence {
 	stanza := &xco.Presence{
 		Header: xco.Header{
 			From: p.Header.To,
@@ -135,12 +130,10 @@ func (x *xmppProcess) presenceAvailable(p *xco.Presence) (*xco.Presence, error) 
 			ID:   NewId(),
 		},
 	}
-	return stanza, nil
+	return stanza
 }
 
-func (x *xmppProcess) handleSubscription(p *xco.Presence) ([]*xco.Presence, error) {
-	var err error
-
+func (x *xmppProcess) handleSubscription(p *xco.Presence) []*xco.Presence {
 	// RFC says to use full JIDs
 	p.Header.To.ResourcePart = ""
 	p.Header.From.ResourcePart = ""
@@ -159,25 +152,20 @@ func (x *xmppProcess) handleSubscription(p *xco.Presence) ([]*xco.Presence, erro
 		stanzas = append(stanzas, stanza)
 
 		// let user know that we're available
-		stanza, err = x.presenceAvailable(p)
+		stanza = x.presenceAvailable(p)
+		stanzas = append(stanzas, stanza)
 
 		// request a reciprocal subscription
-		if err == nil {
-			stanzas = append(stanzas, stanza)
-			stanza, err = x.requestSubscription(p)
-		}
+		stanza = x.requestSubscription(p)
 	case "unsubscribe":
 		stanza.Type = "unavailable"
 	}
 	stanzas = append(stanzas, stanza)
 
-	if err != nil {
-		return nil, err
-	}
-	return stanzas, nil
+	return stanzas
 }
 
-func (x *xmppProcess) requestSubscription(p *xco.Presence) (*xco.Presence, error) {
+func (x *xmppProcess) requestSubscription(p *xco.Presence) *xco.Presence {
 	stanza := &xco.Presence{
 		Header: xco.Header{
 			From: p.Header.To,
@@ -186,5 +174,5 @@ func (x *xmppProcess) requestSubscription(p *xco.Presence) (*xco.Presence, error
 		},
 		Type: "subscribe",
 	}
-	return stanza, nil
+	return stanza
 }
