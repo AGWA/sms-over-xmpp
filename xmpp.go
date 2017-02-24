@@ -160,6 +160,12 @@ func (x *xmppProcess) handleSubscription(p *xco.Presence) ([]*xco.Presence, erro
 
 		// let user know that we're available
 		stanza, err = x.presenceAvailable(p)
+
+		// request a reciprocal subscription
+		if err == nil {
+			stanzas = append(stanzas, stanza)
+			stanza, err = x.requestSubscription(p)
+		}
 	case "unsubscribe":
 		stanza.Type = "unavailable"
 	}
@@ -169,4 +175,16 @@ func (x *xmppProcess) handleSubscription(p *xco.Presence) ([]*xco.Presence, erro
 		return nil, err
 	}
 	return stanzas, nil
+}
+
+func (x *xmppProcess) requestSubscription(p *xco.Presence) (*xco.Presence, error) {
+	stanza := &xco.Presence{
+		Header: xco.Header{
+			From: p.Header.To,
+			To:   p.Header.From,
+			ID:   NewId(),
+		},
+		Type: "subscribe",
+	}
+	return stanza, nil
 }
