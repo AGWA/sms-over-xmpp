@@ -148,10 +148,12 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presenc
 	switch p.Type {
 	case "subscribe":
 		stanza.Type = "subscribed"
+		local := &p.Header.To
+		remote := &p.Header.From
 		return []*xco.Presence{
 			stanza,
-			x.presenceAvailable(p),   // tell user we're available
-			x.requestSubscription(p), // request reciprocal subscription
+			x.presenceAvailable(p),
+			x.requestSubscription(local, remote),
 		}
 	case "unsubscribe":
 		stanza.Type = "unavailable"
@@ -161,11 +163,11 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presenc
 	return nil
 }
 
-func (x *xmppProcess) requestSubscription(p *xco.Presence) *xco.Presence {
+func (x *xmppProcess) requestSubscription(local, remote *xco.Address) *xco.Presence {
 	stanza := &xco.Presence{
 		Header: xco.Header{
-			From: p.Header.To,
-			To:   p.Header.From,
+			From: *local,
+			To:   *remote,
 			ID:   NewId(),
 		},
 		Type: "subscribe",
