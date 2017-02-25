@@ -81,7 +81,7 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 					stanza = x.presenceAvailable(stanza)
 					go func() { tx <- stanza }()
 				case "subscribe", "unsubscribe":
-					stanzas := x.handleSubscription(stanza)
+					stanzas := x.handleSubscribeUnsubscribe(stanza)
 					go func() {
 						for _, stanza := range stanzas {
 							tx <- stanza
@@ -133,7 +133,7 @@ func (x *xmppProcess) presenceAvailable(p *xco.Presence) *xco.Presence {
 	return stanza
 }
 
-func (x *xmppProcess) handleSubscription(p *xco.Presence) []*xco.Presence {
+func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presence {
 	// RFC says to use full JIDs
 	p.Header.To.ResourcePart = ""
 	p.Header.From.ResourcePart = ""
