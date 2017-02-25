@@ -138,7 +138,6 @@ func (x *xmppProcess) handleSubscription(p *xco.Presence) []*xco.Presence {
 	p.Header.To.ResourcePart = ""
 	p.Header.From.ResourcePart = ""
 
-	stanzas := make([]*xco.Presence, 0, 2)
 	stanza := &xco.Presence{
 		Header: xco.Header{
 			From: p.Header.To,
@@ -149,20 +148,17 @@ func (x *xmppProcess) handleSubscription(p *xco.Presence) []*xco.Presence {
 	switch p.Type {
 	case "subscribe":
 		stanza.Type = "subscribed"
-		stanzas = append(stanzas, stanza)
-
-		// let user know that we're available
-		stanza = x.presenceAvailable(p)
-		stanzas = append(stanzas, stanza)
-
-		// request a reciprocal subscription
-		stanza = x.requestSubscription(p)
+		return []*xco.Presence{
+			stanza,
+			x.presenceAvailable(p),   // tell user we're available
+			x.requestSubscription(p), // request reciprocal subscription
+		}
 	case "unsubscribe":
 		stanza.Type = "unavailable"
+		return []*xco.Presence{stanza}
 	}
-	stanzas = append(stanzas, stanza)
 
-	return stanzas
+	return nil
 }
 
 func (x *xmppProcess) requestSubscription(p *xco.Presence) *xco.Presence {
