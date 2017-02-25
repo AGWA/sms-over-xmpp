@@ -191,7 +191,7 @@ func (x *xmppProcess) presenceAvailable(p *xco.Presence) *xco.Presence {
 }
 
 func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presence {
-	// RFC says to use full JIDs
+	// RFC says to use bare JIDs
 	p.Header.To.ResourcePart = ""
 	p.Header.From.ResourcePart = ""
 
