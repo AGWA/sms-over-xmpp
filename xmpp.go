@@ -207,12 +207,15 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presenc
 		stanza.Type = "subscribed"
 		local := &p.Header.To
 		remote := &p.Header.From
-		x.hadContact(local, remote)
-		return []*xco.Presence{
+		stanzas := []*xco.Presence{
 			stanza,
 			x.presenceAvailable(p),
-			x.requestSubscription(local, remote),
 		}
+		if x.isFirstContact(local, remote) {
+			x.hadContact(local, remote)
+			stanzas = append(stanzas, x.requestSubscription(local, remote))
+		}
+		return stanzas
 	case "unsubscribe":
 		stanza.Type = "unavailable"
 		return []*xco.Presence{stanza}
