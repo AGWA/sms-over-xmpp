@@ -24,6 +24,11 @@ type xmppProcess struct {
 	// channels for communicating with the Gateway process
 	gatewayRx chan<- *xco.Message
 	gatewayTx <-chan *xco.Message
+
+	// contacted records whether the local and remote JIDs,
+	// respectively, have contacted each other during the life of this
+	// process.
+	contacted map[xco.Address]map[xco.Address]bool
 }
 
 // runXmppComponent creates a goroutine for sending and receiving XMPP
@@ -62,6 +67,13 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 					log.Printf("  ignoring message with empty body")
 					break
 				}
+				local := &stanza.Header.To
+				remote := &stanza.Header.From
+				if x.isFirstContact(local, remote) {
+					x.hadContact(local, remote)
+					p := x.requestSubscription(local, remote)
+					go func() { tx <- p }()
+				}
 				go func() { x.gatewayRx <- stanza }()
 			case *xco.Iq:
 				if stanza.IsDiscoInfo() {
@@ -94,7 +106,18 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 				panic(fmt.Sprintf("Unexpected stanza type: %#v", st))
 			}
 		case stanza := <-x.gatewayTx:
-			go func() { tx <- stanza }()
+			local := &stanza.Header.From
+			remote := &stanza.Header.To
+			if x.isFirstContact(local, remote) {
+				x.hadContact(local, remote)
+				p := x.requestSubscription(local, remote)
+				go func() {
+					tx <- p
+					tx <- stanza
+				}()
+			} else {
+				go func() { tx <- stanza }()
+			}
 		case err = <-errx:
 		}
 
@@ -120,6 +143,40 @@ func (x *xmppProcess) describeService() ([]xco.DiscoIdentity, []xco.DiscoFeature
 		},
 	}
 	return ids, features
+}
+
+// isFirstContact returns true if the entities local and remote have
+// not had any contact during the life of this process.  Contact
+// includes both messages and subscriptions.
+func (x *xmppProcess) isFirstContact(local, remote *xco.Address) bool {
+	if x.contacted == nil {
+		return true
+	}
+
+	local = local.Bare()
+	remotes := x.contacted[*local]
+	if remotes == nil {
+		return true
+	}
+
+	remote = remote.Bare()
+	return !remotes[*remote]
+}
+
+// hadContact records the fact that local and remote have contacted
+// each other.  It could be for the first time or any subsequent time.
+func (x *xmppProcess) hadContact(local, remote *xco.Address) {
+	local = local.Bare()
+	remote = remote.Bare()
+	if x.contacted == nil {
+		x.contacted = make(map[xco.Address]map[xco.Address]bool)
+	}
+	remotes := x.contacted[*local]
+	if remotes == nil {
+		remotes = make(map[xco.Address]bool)
+		x.contacted[*local] = remotes
+	}
+	remotes[*remote] = true
 }
 
 func (x *xmppProcess) presenceAvailable(p *xco.Presence) *xco.Presence {
@@ -150,6 +207,7 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presenc
 		stanza.Type = "subscribed"
 		local := &p.Header.To
 		remote := &p.Header.From
+		x.hadContact(local, remote)
 		return []*xco.Presence{
 			stanza,
 			x.presenceAvailable(p),
