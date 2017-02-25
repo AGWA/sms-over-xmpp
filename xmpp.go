@@ -110,9 +110,9 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 			remote := &stanza.Header.To
 			if x.isFirstContact(local, remote) {
 				x.hadContact(local, remote)
-				p := x.requestSubscription(local, remote)
+				//p := x.requestSubscription(local, remote)
 				go func() {
-					tx <- p
+					//tx <- p
 					tx <- stanza
 				}()
 			} else {
@@ -213,7 +213,7 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presenc
 		}
 		if x.isFirstContact(local, remote) {
 			x.hadContact(local, remote)
-			stanzas = append(stanzas, x.requestSubscription(local, remote))
+			//stanzas = append(stanzas, x.requestSubscription(local, remote))
 		}
 		return stanzas
 	case "unsubscribe":
