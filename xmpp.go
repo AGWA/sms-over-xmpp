@@ -29,12 +29,18 @@ type xmppProcess struct {
 	// respectively, have contacted each other during the life of this
 	// process.
 	contacted map[xco.Address]map[xco.Address]bool
+
+	// users records XMPP details about each local user.
+	//
+	// The map key is the user's bare JID.
+	users map[xco.Address]*xmppUser
 }
 
 // runXmppComponent creates a goroutine for sending and receiving XMPP
 // stanzas.  it returns a channel for monitoring the goroutine's
 // health.  if that channel closes, the XMPP process has died.
 func (x *xmppProcess) run() <-chan struct{} {
+	x.users = make(map[xco.Address]*xmppUser)
 	opts := xco.Options{
 		Name:         x.name,
 		SharedSecret: x.secret,
@@ -88,6 +94,10 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 				}
 			case *xco.Presence:
 				log.Printf("Presence: %+v", stanza)
+				local := &stanza.Header.To
+				remote := &stanza.Header.From
+				contact := x.user(local).contact(remote)
+
 				switch stanza.Type {
 				case "probe":
 					stanza = x.presenceAvailable(stanza)
@@ -99,6 +109,12 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 							tx <- stanza
 						}
 					}()
+				case "subscribed":
+					if contact.subTo == pending {
+						contact.subTo = yes
+					}
+				case "unsubscribed":
+					contact.subTo = no
 				}
 			case *xml.StartElement:
 				log.Printf("Unknown: %+v", stanza)
@@ -194,6 +210,7 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presenc
 	// RFC says to use bare JIDs
 	local := (&p.Header.To).Bare()
 	remote := (&p.Header.From).Bare()
+	contact := x.user(local).contact(remote)
 
 	stanza := &xco.Presence{
 		Header: xco.Header{
@@ -204,6 +221,9 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presenc
 	}
 	switch p.Type {
 	case "subscribe":
+		if contact.subFrom == no {
+			contact.subFrom = pending
+		}
 		stanza.Type = "subscribed"
 		stanzas := []*xco.Presence{
 			stanza,
@@ -215,6 +235,7 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presenc
 		}
 		return stanzas
 	case "unsubscribe":
+		contact.subFrom = no
 		stanza.Type = "unavailable"
 		return []*xco.Presence{stanza}
 	}
@@ -232,4 +253,16 @@ func (x *xmppProcess) requestSubscription(local, remote *xco.Address) *xco.Prese
 		Type: "subscribe",
 	}
 	return stanza
+}
+
+// user returns the XMPP user for a local JID.  Creates an empty one
+// if none exists.
+func (x *xmppProcess) user(a *xco.Address) *xmppUser {
+	local := *(a.Bare())
+	user, ok := x.users[local]
+	if !ok {
+		user = &xmppUser{}
+		x.users[local] = user
+	}
+	return user
 }
