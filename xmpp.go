@@ -29,8 +29,9 @@ type xmppProcess struct {
 	xmppTx chan<- interface{}
 
 	// contacted records whether the local and remote JIDs,
-	// respectively, have contacted each other during the life of this
-	// process.
+	// respectively, have sent a chat message between themselves
+	// during the life of this process.  A single message in either
+	// direction is enough.
 	contacted map[xco.Address]map[xco.Address]bool
 
 	// users records XMPP details about each local user.
@@ -125,7 +126,6 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 			local := &stanza.Header.From
 			remote := &stanza.Header.To
 			if x.isFirstContact(local, remote) {
-				x.hadContact(local, remote)
 				//p := x.requestSubscription(local, remote)
 				x.send( /* p, */ stanza)
 			} else {
@@ -148,6 +148,10 @@ func (x *xmppProcess) send(stanzas ...interface{}) {
 	// bookkeeping for outgoing stanzas
 	for _, s := range stanzas {
 		switch stanza := s.(type) {
+		case *xco.Message:
+			local := &stanza.Header.From
+			remote := &stanza.Header.To
+			x.hadContact(local, remote)
 		case *xco.Presence:
 			local := &stanza.Header.From
 			remote := &stanza.Header.To
@@ -193,8 +197,8 @@ func (x *xmppProcess) describeService() ([]xco.DiscoIdentity, []xco.DiscoFeature
 }
 
 // isFirstContact returns true if the entities local and remote have
-// not had any contact during the life of this process.  Contact
-// includes both messages and subscriptions.
+// not sent any messages to each other during the life of this
+// process.  Only chat messages count, not presence or iq, etc.
 func (x *xmppProcess) isFirstContact(local, remote *xco.Address) bool {
 	if x.contacted == nil {
 		return true
@@ -210,8 +214,9 @@ func (x *xmppProcess) isFirstContact(local, remote *xco.Address) bool {
 	return !remotes[*remote]
 }
 
-// hadContact records the fact that local and remote have contacted
-// each other.  It could be for the first time or any subsequent time.
+// hadContact records the fact that a chat message has been sent
+// between local and remote.  This could be a single message in either
+// direction.
 func (x *xmppProcess) hadContact(local, remote *xco.Address) {
 	local = local.Bare()
 	remote = remote.Bare()
@@ -261,7 +266,6 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []interface{} 
 			x.presenceAvailable(p),
 		}
 		if x.isFirstContact(local, remote) {
-			x.hadContact(local, remote)
 			//stanzas = append(stanzas, x.requestSubscription(local, remote))
 		}
 		return stanzas
