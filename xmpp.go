@@ -145,6 +145,30 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 // send stanzas to the remote XMPP server.  The transmission happens
 // asynchronously.
 func (x *xmppProcess) send(stanzas ...interface{}) {
+	// bookkeeping for outgoing stanzas
+	for _, s := range stanzas {
+		switch stanza := s.(type) {
+		case *xco.Presence:
+			local := &stanza.Header.From
+			remote := &stanza.Header.To
+			contact := x.user(local).contact(remote)
+
+			switch stanza.Type {
+			case "subscribe":
+				if contact.subTo == no {
+					contact.subTo = pending
+				}
+			case "unsubscribe":
+				contact.subTo = no
+			case "subscribed":
+				contact.subFrom = yes
+			case "unsubscribed":
+				contact.subFrom = no
+			}
+		}
+	}
+
+	// perform actual transmission asynchronously
 	go func() {
 		for _, stanza := range stanzas {
 			x.xmppTx <- stanza
