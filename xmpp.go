@@ -82,8 +82,8 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 				remote := &stanza.Header.From
 				contact := x.user(local).contact(remote)
 				if contact.subTo == no {
-					//p := x.requestSubscription(local, remote)
-					//x.send(p)
+					p := x.requestSubscription(local, remote)
+					x.send(p)
 				}
 				x.hadContact(local, remote)
 				go func() { x.gatewayRx <- stanza }()
@@ -128,11 +128,13 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 			remote := &stanza.Header.To
 			contact := x.user(local).contact(remote)
 
+			stanzas := []interface{}{}
 			if contact.subTo == no {
-				//p := x.requestSubscription(local, remote)
-				//x.send(p)
+				p := x.requestSubscription(local, remote)
+				stanzas = append(stanzas, p)
 			}
-			x.send(stanza)
+			stanzas = append(stanzas, stanza)
+			x.send(stanzas...)
 		case err = <-errx:
 		}
 
@@ -268,7 +270,7 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []interface{} 
 			x.presenceAvailable(p),
 		}
 		if contact.subTo == no {
-			//stanzas = append(stanzas, x.requestSubscription(local, remote))
+			stanzas = append(stanzas, x.requestSubscription(local, remote))
 		}
 		return stanzas
 	case "unsubscribe":
