@@ -1,6 +1,7 @@
 package sms // import "github.com/mndrix/sms-over-xmpp"
 import (
 	"net/url"
+	"sync"
 
 	xco "github.com/mndrix/go-xco"
 	"github.com/pkg/errors"
@@ -13,6 +14,10 @@ type StaticConfig struct {
 	Http HttpConfig `toml:"http"`
 
 	Xmpp StaticConfigXmpp `toml:"xmpp"`
+
+	// CallerId maps an E.164 phone number to a human readable name.
+	CallerId map[string]string `toml:"caller-id"`
+	cidMutex sync.Mutex
 
 	// Phones maps an E.164 phone number to an XMPP address.  If a
 	// mapping is not found here, the inverse of Users is considered.
@@ -148,4 +153,12 @@ func (self *StaticConfig) SmsProvider() (SmsProvider, error) {
 	}
 
 	return twilio, nil
+}
+
+// must be safe from multiple goroutines
+func (self *StaticConfig) Cnam(from, to string) string {
+	self.cidMutex.Lock()
+	name := self.CallerId[from]
+	self.cidMutex.Unlock()
+	return name
 }

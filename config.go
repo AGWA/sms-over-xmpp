@@ -64,3 +64,21 @@ type CanHttpAuth interface {
 	// requests from a service provider.
 	HttpPassword() string
 }
+
+// CanCnam is the method that a config value should implement if it
+// can handle caller ID lookup.  The name derives from the traditional
+// PSTN name for this operation: CNAM.
+type CanCnam interface {
+	// Cnam returns a human-readable name based on the from and to
+	// phone numbers, respectively. Most implementations will ignore
+	// the "to" phone number.  It's made available for users that have
+	// multiple PSTN numbers and want to include that in the caller ID
+	// string.
+	//
+	// Both numbers are in E.164 format.  Return an empty string if
+	// the name is not known.
+	//
+	// Make sure that your implementation is safe to call from
+	// multiple goroutines.
+	Cnam(from string, to string) string
+}

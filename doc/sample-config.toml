@@ -99,3 +99,11 @@ key-secret = "..."
 "+14235551212" = "joe@example.com"
 
 
+# The optional caller-id section maps public phone numbers into human
+# readable names.  These phone numbers are not under control of
+# sms-over-xmpp.  Rather, they are numbers which are likely to send
+# SMS to sms-over-xmpp.  These names help XMPP users identify who the
+# SMS are from until they've configured their XMPP roster with
+# preferred names.
+[caller-id]
+"+19565551212" = "John Wayne"

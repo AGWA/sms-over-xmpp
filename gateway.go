@@ -82,7 +82,12 @@ func (g *gatewayProcess) sms2xmpp(sms *Sms) error {
 	}
 	switch err {
 	case nil:
-		go func() { g.xmppTx <- msg }()
+		go func() {
+			if x, ok := g.config.(CanCnam); ok {
+				msg.Nick = x.Cnam(sms.From, sms.To)
+			}
+			g.xmppTx <- msg
+		}()
 	case ErrIgnoreMessage:
 		log.Println("ignoring message based on phone number")
 	default:

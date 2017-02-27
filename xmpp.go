@@ -82,7 +82,7 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 				remote := &stanza.Header.From
 				contact := x.user(local).contact(remote)
 				if contact.subTo == no {
-					p := x.requestSubscription(local, remote)
+					p := x.requestSubscription(local, remote, "")
 					x.send(p)
 				}
 				x.hadContact(local, remote)
@@ -129,8 +129,12 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 			contact := x.user(local).contact(remote)
 
 			stanzas := []interface{}{}
+			if x.haveRelationship(local, remote) {
+				// XEP-0172 says skip nick for existing relationship
+				stanza.Nick = ""
+			}
 			if contact.subTo == no {
-				p := x.requestSubscription(local, remote)
+				p := x.requestSubscription(local, remote, stanza.Nick)
 				stanzas = append(stanzas, p)
 			}
 			stanzas = append(stanzas, stanza)
@@ -198,6 +202,16 @@ func (x *xmppProcess) describeService() ([]xco.DiscoIdentity, []xco.DiscoFeature
 		},
 	}
 	return ids, features
+}
+
+// haveRelationship returns true if these contacts have an existing
+// XMPP relationship.  That includes a presence subscription in either
+// direction or having sent a message between themselves.
+func (x *xmppProcess) haveRelationship(local, remote *xco.Address) bool {
+	contact := x.user(local).contact(remote)
+	return contact.subTo == yes ||
+		contact.subFrom == yes ||
+		!x.isFirstContact(local, remote)
 }
 
 // isFirstContact returns true if the entities local and remote have
@@ -270,7 +284,7 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []interface{} 
 			x.presenceAvailable(p),
 		}
 		if contact.subTo == no {
-			stanzas = append(stanzas, x.requestSubscription(local, remote))
+			stanzas = append(stanzas, x.requestSubscription(local, remote, ""))
 		}
 		return stanzas
 	case "unsubscribe":
@@ -299,7 +313,7 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []interface{} 
 	return nil
 }
 
-func (x *xmppProcess) requestSubscription(local, remote *xco.Address) *xco.Presence {
+func (x *xmppProcess) requestSubscription(local, remote *xco.Address, nick string) *xco.Presence {
 	stanza := &xco.Presence{
 		Header: xco.Header{
 			From: *local,
@@ -307,6 +321,7 @@ func (x *xmppProcess) requestSubscription(local, remote *xco.Address) *xco.Prese
 			ID:   NewId(),
 		},
 		Type: "subscribe",
+		Nick: nick,
 	}
 	return stanza
 }
