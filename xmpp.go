@@ -192,21 +192,19 @@ func (x *xmppProcess) presenceAvailable(p *xco.Presence) *xco.Presence {
 
 func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presence {
 	// RFC says to use bare JIDs
-	p.Header.To.ResourcePart = ""
-	p.Header.From.ResourcePart = ""
+	local := (&p.Header.To).Bare()
+	remote := (&p.Header.From).Bare()
 
 	stanza := &xco.Presence{
 		Header: xco.Header{
-			From: p.Header.To,
-			To:   p.Header.From,
+			From: *local,
+			To:   *remote,
 			ID:   NewId(),
 		},
 	}
 	switch p.Type {
 	case "subscribe":
 		stanza.Type = "subscribed"
-		local := &p.Header.To
-		remote := &p.Header.From
 		stanzas := []*xco.Presence{
 			stanza,
 			x.presenceAvailable(p),
