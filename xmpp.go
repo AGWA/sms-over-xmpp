@@ -80,11 +80,12 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 				}
 				local := &stanza.Header.To
 				remote := &stanza.Header.From
-				if x.isFirstContact(local, remote) {
-					x.hadContact(local, remote)
-					p := x.requestSubscription(local, remote)
-					x.send(p)
+				contact := x.user(local).contact(remote)
+				if contact.subTo == no {
+					//p := x.requestSubscription(local, remote)
+					//x.send(p)
 				}
+				x.hadContact(local, remote)
 				go func() { x.gatewayRx <- stanza }()
 			case *xco.Iq:
 				if stanza.IsDiscoInfo() {
@@ -125,12 +126,13 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 		case stanza := <-x.gatewayTx:
 			local := &stanza.Header.From
 			remote := &stanza.Header.To
-			if x.isFirstContact(local, remote) {
+			contact := x.user(local).contact(remote)
+
+			if contact.subTo == no {
 				//p := x.requestSubscription(local, remote)
-				x.send( /* p, */ stanza)
-			} else {
-				x.send(stanza)
+				//x.send(p)
 			}
+			x.send(stanza)
 		case err = <-errx:
 		}
 
@@ -265,7 +267,7 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []interface{} 
 			stanza,
 			x.presenceAvailable(p),
 		}
-		if x.isFirstContact(local, remote) {
+		if contact.subTo == no {
 			//stanzas = append(stanzas, x.requestSubscription(local, remote))
 		}
 		return stanzas
