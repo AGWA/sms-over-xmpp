@@ -25,6 +25,9 @@ type xmppProcess struct {
 	gatewayRx chan<- *xco.Message
 	gatewayTx <-chan *xco.Message
 
+	// channels for communicating with the XMPP server
+	xmppTx chan<- interface{}
+
 	// contacted records whether the local and remote JIDs,
 	// respectively, have contacted each other during the life of this
 	// process.
@@ -63,6 +66,7 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 	}
 
 	tx, rx, errx := c.RunAsync()
+	x.xmppTx = tx
 	for {
 		select {
 		case st := <-rx:
@@ -78,7 +82,7 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 				if x.isFirstContact(local, remote) {
 					x.hadContact(local, remote)
 					p := x.requestSubscription(local, remote)
-					go func() { tx <- p }()
+					x.send(p)
 				}
 				go func() { x.gatewayRx <- stanza }()
 			case *xco.Iq:
@@ -87,7 +91,7 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 					ids, features := x.describeService()
 					stanza, err = stanza.DiscoInfoReply(ids, features)
 					if err == nil {
-						go func() { tx <- stanza }()
+						x.send(stanza)
 					}
 				} else {
 					log.Printf("Iq: %+v", stanza)
@@ -101,14 +105,10 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 				switch stanza.Type {
 				case "probe":
 					stanza = x.presenceAvailable(stanza)
-					go func() { tx <- stanza }()
+					x.send(stanza)
 				case "subscribe", "unsubscribe":
 					stanzas := x.handleSubscribeUnsubscribe(stanza)
-					go func() {
-						for _, stanza := range stanzas {
-							tx <- stanza
-						}
-					}()
+					x.send(stanzas...)
 				case "subscribed":
 					if contact.subTo == pending {
 						contact.subTo = yes
@@ -127,12 +127,9 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 			if x.isFirstContact(local, remote) {
 				x.hadContact(local, remote)
 				//p := x.requestSubscription(local, remote)
-				go func() {
-					//tx <- p
-					tx <- stanza
-				}()
+				x.send( /* p, */ stanza)
 			} else {
-				go func() { tx <- stanza }()
+				x.send(stanza)
 			}
 		case err = <-errx:
 		}
@@ -143,6 +140,16 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 	}
 
 	log.Printf("lost XMPP connection: %s", err)
+}
+
+// send stanzas to the remote XMPP server.  The transmission happens
+// asynchronously.
+func (x *xmppProcess) send(stanzas ...interface{}) {
+	go func() {
+		for _, stanza := range stanzas {
+			x.xmppTx <- stanza
+		}
+	}()
 }
 
 func (x *xmppProcess) describeService() ([]xco.DiscoIdentity, []xco.DiscoFeature) {
@@ -206,7 +213,7 @@ func (x *xmppProcess) presenceAvailable(p *xco.Presence) *xco.Presence {
 	return stanza
 }
 
-func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presence {
+func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []interface{} {
 	// RFC says to use bare JIDs
 	local := (&p.Header.To).Bare()
 	remote := (&p.Header.From).Bare()
@@ -225,7 +232,7 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presenc
 			contact.subFrom = pending
 		}
 		stanza.Type = "subscribed"
-		stanzas := []*xco.Presence{
+		stanzas := []interface{}{
 			stanza,
 			x.presenceAvailable(p),
 		}
@@ -237,7 +244,7 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []*xco.Presenc
 	case "unsubscribe":
 		contact.subFrom = no
 		stanza.Type = "unavailable"
-		return []*xco.Presence{stanza}
+		return []interface{}{stanza}
 	}
 
 	return nil
