@@ -58,6 +58,21 @@ password = "telephony secret"
 public-url = "https://example.com/path/to/sms-over-xmpp"
 
 
+# The twilio section provides account and authentication details for
+# your Twilio account.  If you're using some other telephony provider,
+# this section can be omitted.
+[twilio]
+# account-sid is the main account identifier listed on your Twilio
+# Console.  See https://www.twilio.com/console
+account-sid = "AC..."
+
+# key-sid and key-secret are Twilio API credentials generated from
+# https://www.twilio.com/console/sms/dev-tools/api-keys These are
+# different from your Twilio "auth token", which won't work here.
+key-sid = "SK..."
+key-secret = "..."
+
+
 # The users section maps XMPP users to their public phone numbers.
 # Each user should be specified by their bare JID.  Each phone number
 # should be in E.164 format.
@@ -84,16 +99,3 @@ public-url = "https://example.com/path/to/sms-over-xmpp"
 "+14235551212" = "joe@example.com"
 
 
-# The twilio section provides accoun and authentication details for
-# your Twilio account.  If you're using some other telephony provider,
-# this section can be omitted.
-[twilio]
-# account-sid is the main account identifier listed on your Twilio
-# Console.  See https://www.twilio.com/console
-account-sid = "AC..."
-
-# key-sid and key-secret are Twilio API credentials generated from
-# https://www.twilio.com/console/sms/dev-tools/api-keys These are
-# different from your Twilio "auth token", which won't work here.
-key-sid = "SK..."
-key-secret = "..."
