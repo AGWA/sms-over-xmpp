@@ -272,9 +272,26 @@ func (x *xmppProcess) handleSubscribeUnsubscribe(p *xco.Presence) []interface{} 
 		}
 		return stanzas
 	case "unsubscribe":
+		stanzas := []interface{}{}
+		if contact.subFrom == yes {
+			stanza.Type = "unavailable"
+			stanzas = []interface{}{
+				stanza,
+
+				// RFC 6121 A.3.2 says
+				// "SHOULD autoreply with unsubscribed stanza"
+				&xco.Presence{
+					Header: xco.Header{
+						From: *local,
+						To:   *remote,
+						ID:   NewId(),
+					},
+					Type: "unsubscribed",
+				},
+			}
+		}
 		contact.subFrom = no
-		stanza.Type = "unavailable"
-		return []interface{}{stanza}
+		return stanzas
 	}
 
 	return nil
