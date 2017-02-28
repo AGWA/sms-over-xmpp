@@ -1,7 +1,13 @@
 package sms // import "github.com/mndrix/sms-over-xmpp"
 import (
+	"bytes"
+	"context"
+	"log"
 	"net/url"
+	"os/exec"
+	"strings"
 	"sync"
+	"time"
 
 	xco "github.com/mndrix/go-xco"
 	"github.com/pkg/errors"
@@ -157,8 +163,34 @@ func (self *StaticConfig) SmsProvider() (SmsProvider, error) {
 
 // must be safe from multiple goroutines
 func (self *StaticConfig) Cnam(from, to string) string {
+	var lookup string
+
 	self.cidMutex.Lock()
 	name := self.CallerId[from]
+	if name == "" {
+		lookup = self.CallerId["lookup"]
+	}
 	self.cidMutex.Unlock()
+
+	if lookup != "" {
+		var stdout, stderr bytes.Buffer
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, lookup)
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		cmd.Env = []string{
+			"FROM=" + from,
+			"TO=" + to,
+		}
+		err := cmd.Run()
+		if err != nil {
+			log.Printf("ERROR caller-id.lookup error: %s: %s", err, stderr.String())
+			return ""
+		}
+		name = strings.SplitN(stdout.String(), "\n", 2)[0]
+		log.Printf("caller-id.lookup returned: %s", name)
+	}
+
 	return name
 }

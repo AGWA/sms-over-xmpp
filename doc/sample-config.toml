@@ -107,3 +107,20 @@ key-secret = "..."
 # preferred names.
 [caller-id]
 "+19565551212" = "John Wayne"
+
+# lookup is an optional script that's executed to locate caller ID
+# information for phone numbers that aren't explicitly listed
+# elsewhere in this section.  It can be an absolute path or a name of
+# a script within the PATH.
+#
+# When the script is executed, the following environment variables
+# have the values indicated:
+#
+#    * FROM - E.164 phone number that sent the SMS
+#    * TO - E.164 phone number receiving the SMS
+#
+# If the script returns with an exit code of 0, then the first line of
+# stdout is used as the caller ID name.  Otherwise, stderr is appended
+# to the logs.  If the script takes too long to execute, it will be
+# killed.  In any error condition, no caller ID will be used.
+lookup = "/path/to/cnam-script.sh"
