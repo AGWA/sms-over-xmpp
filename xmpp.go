@@ -124,9 +124,6 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 			local := &stanza.Header.From
 			remote := &stanza.Header.To
 			contact := x.user(local).contact(remote)
-			if stanza.Nick != "" {
-				contact.localName = stanza.Nick
-			}
 
 			stanzas := []interface{}{}
 			if contact.subTo == no {
@@ -152,6 +149,14 @@ func (x *xmppProcess) send(stanzas ...interface{}) {
 	// bookkeeping for outgoing stanzas
 	for _, s := range stanzas {
 		switch stanza := s.(type) {
+		case *xco.Message:
+			local := &stanza.Header.From
+			remote := &stanza.Header.To
+			contact := x.user(local).contact(remote)
+
+			if stanza.Nick != "" {
+				contact.localName = stanza.Nick
+			}
 		case *xco.Presence:
 			local := &stanza.Header.From
 			remote := &stanza.Header.To
