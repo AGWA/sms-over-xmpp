@@ -28,11 +28,6 @@ type xmppProcess struct {
 	// channels for communicating with the XMPP server
 	xmppTx chan<- interface{}
 
-	// contacted records whether the local and remote JIDs,
-	// respectively, have sent a chat message between themselves
-	// during the life of this process.  A single message in either
-	// direction is enough.
-	contacted map[xco.Address]map[xco.Address]bool
 
 	// users records XMPP details about each local user.
 	//
@@ -85,7 +80,6 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 					p := x.requestSubscription(local, remote, "")
 					x.send(p)
 				}
-				x.hadContact(local, remote)
 				go func() { x.gatewayRx <- stanza }()
 			case *xco.Iq:
 				if stanza.IsDiscoInfo() {
@@ -135,10 +129,6 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 			}
 
 			stanzas := []interface{}{}
-			if x.haveRelationship(local, remote) {
-				// XEP-0172 says skip nick for existing relationship
-				stanza.Nick = ""
-			}
 			if contact.subTo == no {
 				p := x.requestSubscription(local, remote, stanza.Nick)
 				stanzas = append(stanzas, p)
@@ -162,10 +152,6 @@ func (x *xmppProcess) send(stanzas ...interface{}) {
 	// bookkeeping for outgoing stanzas
 	for _, s := range stanzas {
 		switch stanza := s.(type) {
-		case *xco.Message:
-			local := &stanza.Header.From
-			remote := &stanza.Header.To
-			x.hadContact(local, remote)
 		case *xco.Presence:
 			local := &stanza.Header.From
 			remote := &stanza.Header.To
@@ -207,51 +193,6 @@ func (x *xmppProcess) describeService() ([]xco.DiscoIdentity, []xco.DiscoFeature
 		{Var: "vcard-temp"},
 	}
 	return ids, features
-}
-
-// haveRelationship returns true if these contacts have an existing
-// XMPP relationship.  That includes a presence subscription in either
-// direction or having sent a message between themselves.
-func (x *xmppProcess) haveRelationship(local, remote *xco.Address) bool {
-	contact := x.user(local).contact(remote)
-	return contact.subTo == yes ||
-		contact.subFrom == yes ||
-		!x.isFirstContact(local, remote)
-}
-
-// isFirstContact returns true if the entities local and remote have
-// not sent any messages to each other during the life of this
-// process.  Only chat messages count, not presence or iq, etc.
-func (x *xmppProcess) isFirstContact(local, remote *xco.Address) bool {
-	if x.contacted == nil {
-		return true
-	}
-
-	local = local.Bare()
-	remotes := x.contacted[*local]
-	if remotes == nil {
-		return true
-	}
-
-	remote = remote.Bare()
-	return !remotes[*remote]
-}
-
-// hadContact records the fact that a chat message has been sent
-// between local and remote.  This could be a single message in either
-// direction.
-func (x *xmppProcess) hadContact(local, remote *xco.Address) {
-	local = local.Bare()
-	remote = remote.Bare()
-	if x.contacted == nil {
-		x.contacted = make(map[xco.Address]map[xco.Address]bool)
-	}
-	remotes := x.contacted[*local]
-	if remotes == nil {
-		remotes = make(map[xco.Address]bool)
-		x.contacted[*local] = remotes
-	}
-	remotes[*remote] = true
 }
 
 func (x *xmppProcess) presenceAvailable(p *xco.Presence) *xco.Presence {
