@@ -95,6 +95,9 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 					if err == nil {
 						x.send(stanza)
 					}
+				} else if stanza.Vcard != nil {
+					log.Printf("vCard: %+v", stanza)
+					x.replyVcard(stanza)
 				} else {
 					log.Printf("Iq: %+v", stanza)
 				}
@@ -127,6 +130,9 @@ func (x *xmppProcess) loop(opts xco.Options, healthCh chan<- struct{}) {
 			local := &stanza.Header.From
 			remote := &stanza.Header.To
 			contact := x.user(local).contact(remote)
+			if stanza.Nick != "" {
+				contact.localName = stanza.Nick
+			}
 
 			stanzas := []interface{}{}
 			if x.haveRelationship(local, remote) {
@@ -197,9 +203,8 @@ func (x *xmppProcess) describeService() ([]xco.DiscoIdentity, []xco.DiscoFeature
 		},
 	}
 	features := []xco.DiscoFeature{
-		{
-			Var: "urn:xmpp:receipts",
-		},
+		{Var: "urn:xmpp:receipts"},
+		{Var: "vcard-temp"},
 	}
 	return ids, features
 }
@@ -336,4 +341,21 @@ func (x *xmppProcess) user(a *xco.Address) *xmppUser {
 		x.users[local] = user
 	}
 	return user
+}
+
+// reply to a request for a users vCard
+func (x *xmppProcess) replyVcard(req *xco.Iq) {
+	contact := x.user(&req.To).contact(&req.From)
+	reply := &xco.Iq{
+		Type: "result",
+		Header: xco.Header{
+			From: req.To,
+			To:   req.From,
+			ID:   req.ID,
+		},
+		Vcard: &xco.Vcard{
+			FullName: contact.localName,
+		},
+	}
+	x.send(reply)
 }
