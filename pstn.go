@@ -64,6 +64,10 @@ func (h *pstnProcess) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Println(msg)
 		return
 	}
+
+	// send blank payload for Twilio to stop complaining
+	w.Header().Set("Content-Type", "text/xml")
+	w.Write([]byte("<Response></Response>"))
 }
 
 func (h *pstnProcess) recognizeNotice(r *http.Request, errCh chan<- error) (rxSms, error) {
