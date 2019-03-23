@@ -18,14 +18,6 @@ type Config interface {
 	// XMPP server knows us.
 	ComponentName() string
 
-	// HttpHost is the host address on which to listen for HTTP
-	// connections.  If its the empty string, listen on all available
-	// interfaces.
-	HttpHost() string
-
-	// HttpPort is the port on which to listen for HTTP connections.
-	HttpPort() int
-
 	// PhoneToAddress converts an E.164 phone number into an XMPP
 	// address.  This determines the mapping from PSTN users to XMPP
 	// users.  The reverse mapping is done by AddressToPhone.
@@ -47,22 +39,6 @@ type Config interface {
 
 	// XmppPort is the port on which the XMPP server is listening.
 	XmppPort() int
-}
-
-// CanHttpAuth is the methods that a config value should implement if
-// it supports HTTP authentication of incoming requests.
-//
-// If both HttpUsername and HttpPassword return empty strings, an HTTP
-// request is considered authentic regardless of username and
-// password.
-type CanHttpAuth interface {
-	// HttpUsername is an optional username to authenticate HTTP
-	// requests from a service provider.
-	HttpUsername() string
-
-	// HttpPassword is an optional password to authenticate HTTP
-	// requests from a service provider.
-	HttpPassword() string
 }
 
 // CanCnam is the method that a config value should implement if it

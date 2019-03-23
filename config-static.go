@@ -84,14 +84,6 @@ func (self *StaticConfig) HttpPort() int {
 	return port
 }
 
-func (self *StaticConfig) HttpUsername() string {
-	return self.Http.Username
-}
-
-func (self *StaticConfig) HttpPassword() string {
-	return self.Http.Password
-}
-
 func (self *StaticConfig) XmppHost() string {
 	return self.Xmpp.Host
 }
@@ -137,9 +129,13 @@ func (self *StaticConfig) SmsProvider() (SmsProvider, error) {
 		return nil, errors.New("Need to configure an SMS provider")
 	}
 	twilio := &Twilio{
-		accountSid: self.Twilio.AccountSid,
-		keySid:     self.Twilio.KeySid,
-		keySecret:  self.Twilio.KeySecret,
+		accountSid:   self.Twilio.AccountSid,
+		keySid:       self.Twilio.KeySid,
+		keySecret:    self.Twilio.KeySecret,
+		httpHost:     self.HttpHost(),
+		httpPort:     self.HttpPort(),
+		httpUsername: self.Http.Username,
+		httpPassword: self.Http.Password,
 	}
 
 	// configure public URL for SMS status updates

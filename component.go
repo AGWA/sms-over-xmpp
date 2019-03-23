@@ -95,17 +95,7 @@ func (sc *Component) runPstnProcess() <-chan struct{} {
 		panic(msg)
 	}
 
-	pstn := &pstnProcess{
-		host:     config.HttpHost(),
-		port:     config.HttpPort(),
-		provider: provider,
-		rxSmsCh:  sc.rxSmsCh,
-	}
-	if cfg, ok := config.(CanHttpAuth); ok {
-		pstn.user = cfg.HttpUsername()
-		pstn.password = cfg.HttpPassword()
-	}
-	return pstn.run()
+	return provider.RunPstnProcess(sc.rxSmsCh)
 }
 
 // runXmppProcess starts the XMPP process

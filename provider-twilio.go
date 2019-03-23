@@ -1,8 +1,10 @@
 package sms
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,6 +19,14 @@ type Twilio struct {
 	keySid     string
 	keySecret  string
 
+	// where to listen for incoming HTTP requests
+	httpHost string
+	httpPort int
+
+	// credentials for HTTP auth
+	httpUsername string
+	httpPassword string
+
 	publicUrl *url.URL
 
 	client *http.Client
@@ -24,7 +34,6 @@ type Twilio struct {
 
 // make sure we implement the right interfaces
 var _ SmsProvider = &Twilio{}
-var _ CanSmsStatus = &Twilio{}
 
 // represents a response from Twilio's API
 type twilioApiResponse struct {
@@ -33,6 +42,13 @@ type twilioApiResponse struct {
 
 	Sid   string   `json:"sid"`
 	Flags []string `json:"flags"`
+}
+
+// represents the HTTP server used for receiving incoming SMS from Twilio
+type twilioHttpServer struct {
+	username string
+	password string
+	rxSmsCh  chan<- rxSms
 }
 
 func (t *Twilio) httpClient() *http.Client {
@@ -91,7 +107,70 @@ func (t *Twilio) SendSms(sms *Sms) (string, error) {
 	return res.Sid, nil
 }
 
-func (t *Twilio) ReceiveSms(r *http.Request) (*Sms, error) {
+func (t *Twilio) RunPstnProcess(rxSmsCh chan<- rxSms) <-chan struct{} {
+	s := &twilioHttpServer{
+		username: t.httpUsername,
+		password: t.httpPassword,
+		rxSmsCh:  rxSmsCh,
+	}
+	addr := fmt.Sprintf("%s:%d", t.httpHost, t.httpPort)
+	healthCh := make(chan struct{})
+	go func() {
+		defer func() { close(healthCh) }()
+		err := http.ListenAndServe(addr, s)
+		log.Printf("HTTP server error: %s", err)
+	}()
+	return healthCh
+}
+
+func (s *twilioHttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	msgSid := r.FormValue("MessageSid")
+	log.Printf("%s %s (%s)", r.Method, r.URL.Path, msgSid)
+
+	// verify HTTP authentication
+	if !s.isHttpAuthenticated(r) {
+		w.Header().Set("WWW-Authenticate", "Basic realm=\"sms-over-xmpp\"")
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprintln(w, "Not authorized")
+		return
+	}
+
+	// what kind of notice did we receive?
+	errCh := make(chan error)
+	rx, err := s.recognizeNotice(r, errCh)
+	if err == nil && rx != nil {
+		s.rxSmsCh <- rx
+		err = <-errCh
+	}
+	if err != nil {
+		msg := fmt.Sprintf("ERROR: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, msg)
+		log.Println(msg)
+		return
+	}
+
+	// send blank payload for Twilio to stop complaining
+	w.Header().Set("Content-Type", "text/xml")
+	w.Write([]byte("<Response></Response>"))
+}
+
+func (s *twilioHttpServer) recognizeNotice(r *http.Request, errCh chan<- error) (rxSms, error) {
+	id := r.FormValue("MessageSid")
+	status := r.FormValue("MessageStatus")
+
+	if id != "" && status != "" {
+		if status == "delivered" {
+			rx := &rxSmsStatus{
+				id:     id,
+				status: smsDelivered,
+				errCh:  errCh,
+			}
+			return rx, nil
+		}
+		return nil, nil
+	}
+
 	from := r.FormValue("From")
 	to := r.FormValue("To")
 	body := r.FormValue("Body")
@@ -101,11 +180,34 @@ func (t *Twilio) ReceiveSms(r *http.Request) (*Sms, error) {
 		To:   to,
 		Body: body,
 	}
-	return sms, nil
+
+	rx := &rxSmsMessage{
+		sms:   sms,
+		errCh: errCh,
+	}
+	return rx, nil
 }
 
-func (t *Twilio) SmsStatus(r *http.Request) (string, string, bool) {
-	id := r.FormValue("MessageSid")
-	status := r.FormValue("MessageStatus")
-	return id, status, (id != "" && status != "")
+func (s *twilioHttpServer) isHttpAuthenticated(r *http.Request) bool {
+	wantUser := s.username
+	wantPass := s.password
+	if wantUser == "" && wantPass == "" {
+		return true
+	}
+
+	// now we know that HTTP authentication is mandatory
+	gotUser, gotPass, ok := r.BasicAuth()
+	if !ok {
+		return false
+	}
+
+	if subtle.ConstantTimeCompare([]byte(gotUser), []byte(wantUser)) != 1 {
+		return false
+	}
+
+	if subtle.ConstantTimeCompare([]byte(gotPass), []byte(wantPass)) != 1 {
+		return false
+	}
+
+	return true
 }
