@@ -1,5 +1,6 @@
 package sms // import "github.com/mndrix/sms-over-xmpp"
 import (
+	"crypto/subtle"
 	"fmt"
 	"log"
 	"net/http"
@@ -109,5 +110,13 @@ func (h *pstnProcess) isHttpAuthenticated(r *http.Request) bool {
 		return false
 	}
 
-	return gotUser == wantUser && gotPass == wantPass
+	if subtle.ConstantTimeCompare([]byte(gotUser), []byte(wantUser)) != 1 {
+		return false
+	}
+
+	if subtle.ConstantTimeCompare([]byte(gotPass), []byte(wantPass)) != 1 {
+		return false
+	}
+
+	return true
 }
