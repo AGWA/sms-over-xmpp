@@ -3,7 +3,6 @@ package sms // import "github.com/mndrix/sms-over-xmpp"
 import (
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	xco "github.com/mndrix/go-xco"
@@ -23,9 +22,6 @@ type Component struct {
 	// SMS identifier.  the value is the delivery receipt that we should deliver
 	// once the associated SMS has been delivered.
 	receiptFor map[string]*xco.Message
-
-	// receiptForMutex serializes acces to the receiptFor structure
-	receiptForMutex sync.Mutex
 
 	// rxSmsCh is a channel connecting PSTN->Gateway.  It communicates
 	// information received about SMS (a message, a status update,
