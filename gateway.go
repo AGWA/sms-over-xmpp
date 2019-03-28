@@ -70,16 +70,16 @@ func (g *gatewayProcess) sms2xmpp(sms *Sms) error {
 		},
 		Header: xco.Header{
 			ID: NewId(),
+			From: xco.Address{
+				LocalPart: sms.From,
+				DomainPart: g.config.ComponentName(),
+			},
 		},
 		Type: "chat",
 		Body: sms.Body,
 	}
 
-	// convert author's phone number into XMPP address
-	msg.Header.From, err = g.config.PhoneToAddress(sms.From)
-	if err == nil {
-		msg.Header.To, err = g.config.PhoneToAddress(sms.To)
-	}
+	msg.Header.To, err = g.config.PhoneToAddress(sms.To)
 	switch err {
 	case nil:
 		go func() {
@@ -108,12 +108,12 @@ func (g *gatewayProcess) smsDelivered(smsId string) error {
 
 func (g *gatewayProcess) xmpp2sms(m *xco.Message) error {
 	var err error
-	sms := &Sms{Body: m.Body}
-
-	sms.To, err = g.config.AddressToPhone(m.To)
-	if err == nil {
-		sms.From, err = g.config.AddressToPhone(m.From)
+	sms := &Sms{
+		Body: m.Body,
+		To:   m.To.LocalPart,
 	}
+
+	sms.From, err = g.config.AddressToPhone(m.From)
 	switch err {
 	case nil:
 		// all is well. we'll continue below
