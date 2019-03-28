@@ -98,8 +98,7 @@ func (self *StaticConfig) AddressToPhone(addr xco.Address) (string, error) {
 		return e164, nil
 	}
 
-	// assume the name is already a phone number
-	return addr.LocalPart, nil
+	return "", ErrIgnoreMessage
 }
 
 func (self *StaticConfig) PhoneToAddress(e164 string) (xco.Address, error) {
@@ -116,12 +115,7 @@ func (self *StaticConfig) PhoneToAddress(e164 string) (xco.Address, error) {
 		}
 	}
 
-	// assume the phone number is the user name
-	addr := xco.Address{
-		LocalPart:  e164,
-		DomainPart: self.Xmpp.Name,
-	}
-	return addr, nil
+	return xco.Address{}, ErrIgnoreMessage
 }
 
 func (self *StaticConfig) SmsProvider() (SmsProvider, error) {
