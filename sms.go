@@ -22,10 +22,10 @@ const (
 	smsDelivered smsStatus = 1
 )
 
-// rxSms represents information we've received about an SMS. it could
+// RxSms represents information we've received about an SMS. it could
 // be a new message arriving or a status update about a message we
 // sent.
-type rxSms interface {
+type RxSms interface {
 	// IsRxSms is a dummy method for tagging those types which
 	// represent incoming SMS data.
 	IsRxSms()
@@ -43,9 +43,15 @@ type rxSmsMessage struct {
 	// errCh is the channel for implement ErrCh() method
 	errCh chan<- error
 }
+func MakeRxSmsMessage(sms *Sms, errCh chan<- error) RxSms {
+	return &rxSmsMessage{
+		sms: sms,
+		errCh: errCh,
+	}
+}
 
-// implement rxSms interface
-var _ rxSms = &rxSmsMessage{}
+// implement RxSms interface
+var _ RxSms = &rxSmsMessage{}
 
 func (*rxSmsMessage) IsRxSms()              {}
 func (i *rxSmsMessage) ErrCh() chan<- error { return i.errCh }
@@ -62,8 +68,8 @@ type rxSmsStatus struct {
 	errCh chan<- error
 }
 
-// implement rxSms interface
-var _ rxSms = &rxSmsStatus{}
+// implement RxSms interface
+var _ RxSms = &rxSmsStatus{}
 
 func (*rxSmsStatus) IsRxSms()              {}
 func (i *rxSmsStatus) ErrCh() chan<- error { return i.errCh }

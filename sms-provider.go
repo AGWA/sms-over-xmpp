@@ -6,7 +6,7 @@ type SmsProvider interface {
 	// RunPstnProcess creates a goroutine for receiving SMSes.  It returns a
 	// channel for monitoring the goroutine's health.  If that channel
 	// closes, the SMS goroutine has died.
-	RunPstnProcess(chan<- rxSms) <-chan struct{}
+	RunPstnProcess(chan<- RxSms) <-chan struct{}
 
 	// SendSms sends the given SMS. It returns a unique identifier for
 	// the outgoing message.  If possible, the identifier should

@@ -16,7 +16,7 @@ type gatewayProcess struct {
 	// fields shared with Component. see docs there
 	config     Config
 	receiptFor map[string]*xco.Message
-	smsRx      <-chan rxSms
+	smsRx      <-chan RxSms
 	xmppRx     <-chan *xco.Message
 	xmppTx     chan<- *xco.Message
 }
@@ -47,7 +47,7 @@ func (g *gatewayProcess) loop(healthCh chan<- struct{}) {
 					log.Panicf("unexpected SMS status: %d", x.status)
 				}
 			default:
-				log.Panicf("unexpected rxSms type: %#v", rxSms)
+				log.Panicf("unexpected RxSms type: %#v", rxSms)
 			}
 
 			go func() { errCh <- err }()

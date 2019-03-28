@@ -26,7 +26,7 @@ type Component struct {
 	// rxSmsCh is a channel connecting PSTN->Gateway.  It communicates
 	// information received about SMS (a message, a status update,
 	// etc.)
-	rxSmsCh chan rxSms
+	rxSmsCh chan RxSms
 
 	// rxXmppCh is a channel connecting XMPP->Gateway. It communicates
 	// incoming XMPP messages.  It doesn't carry other XMPP stanzas
@@ -45,7 +45,7 @@ type Component struct {
 func Main(config Config) {
 	sc := &Component{config: config}
 	sc.receiptFor = make(map[string]*xco.Message)
-	sc.rxSmsCh = make(chan rxSms)
+	sc.rxSmsCh = make(chan RxSms)
 	sc.rxXmppCh = make(chan *xco.Message)
 	sc.txXmppCh = make(chan *xco.Message)
 

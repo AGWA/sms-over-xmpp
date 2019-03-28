@@ -48,7 +48,7 @@ type twilioApiResponse struct {
 type twilioHttpServer struct {
 	username string
 	password string
-	rxSmsCh  chan<- rxSms
+	rxSmsCh  chan<- RxSms
 }
 
 func (t *Twilio) httpClient() *http.Client {
@@ -107,7 +107,7 @@ func (t *Twilio) SendSms(sms *Sms) (string, error) {
 	return res.Sid, nil
 }
 
-func (t *Twilio) RunPstnProcess(rxSmsCh chan<- rxSms) <-chan struct{} {
+func (t *Twilio) RunPstnProcess(rxSmsCh chan<- RxSms) <-chan struct{} {
 	s := &twilioHttpServer{
 		username: t.httpUsername,
 		password: t.httpPassword,
@@ -155,7 +155,7 @@ func (s *twilioHttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("<Response></Response>"))
 }
 
-func (s *twilioHttpServer) recognizeNotice(r *http.Request, errCh chan<- error) (rxSms, error) {
+func (s *twilioHttpServer) recognizeNotice(r *http.Request, errCh chan<- error) (RxSms, error) {
 	id := r.FormValue("MessageSid")
 	status := r.FormValue("MessageStatus")
 
