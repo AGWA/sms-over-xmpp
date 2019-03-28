@@ -73,7 +73,7 @@ directly to sms-over-xmpp.
 
 Install the binary with
 
-    go get github.com/mndrix/sms-over-xmpp/...
+    go get github.com/AGWA/sms-over-xmpp/...
 
 Write a config file (`config.toml` is a common name):
 
