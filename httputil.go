@@ -25,38 +25,37 @@
  * authorization.
  */
 
-package main
+package smsxmpp
 
 import (
+	"crypto/subtle"
+	"fmt"
 	"net/http"
-	"log"
-	"os"
-
-	"src.agwa.name/sms-over-xmpp"
-	"src.agwa.name/sms-over-xmpp/config"
-	_ "src.agwa.name/sms-over-xmpp/providers/twilio"
-	_ "src.agwa.name/sms-over-xmpp/providers/nexmo"
 )
 
-func main() {
-	config, err := config.FromDirectory(os.Args[1])
-	if err != nil {
-		log.Fatal(err)
+func IsHTTPAuthed(req *http.Request, correctPassword string) bool {
+	_, password, ok := req.BasicAuth()
+	return ok &&
+		subtle.ConstantTimeCompare([]byte(password), []byte(correctPassword)) == 1
+}
+
+func RequireHTTPAuth(w http.ResponseWriter, req *http.Request, correctPassword string) bool {
+	if !IsHTTPAuthed(req, correctPassword) {
+		w.Header().Set("WWW-Authenticate", "Basic realm=\"sms-over-xmpp\"")
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprintln(w, "401 Unauthorized: please provide correct password")
+		return false
 	}
+	return true
+}
 
-	service, err := smsxmpp.NewService(config)
-	if err != nil {
-		log.Fatal(err)
+func RequireHTTPAuthHandler(correctPassword string, h http.Handler) http.Handler {
+	if correctPassword == "" {
+		return h
 	}
-
-	httpServer := http.Server{
-		Addr: config.HTTPServer,
-		Handler: service.HTTPHandler(),
-	}
-
-	go func() {
-		log.Fatal(httpServer.ListenAndServe())
-	}()
-
-	log.Fatal(service.RunXMPPComponent())
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if RequireHTTPAuth(w, r, correctPassword) {
+			h.ServeHTTP(w, r)
+		}
+	})
 }

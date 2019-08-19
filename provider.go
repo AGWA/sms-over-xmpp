@@ -25,38 +25,46 @@
  * authorization.
  */
 
-package main
+package smsxmpp
 
 import (
+	"errors"
 	"net/http"
-	"log"
-	"os"
-
-	"src.agwa.name/sms-over-xmpp"
-	"src.agwa.name/sms-over-xmpp/config"
-	_ "src.agwa.name/sms-over-xmpp/providers/twilio"
-	_ "src.agwa.name/sms-over-xmpp/providers/nexmo"
+	"sync"
 )
 
-func main() {
-	config, err := config.FromDirectory(os.Args[1])
-	if err != nil {
-		log.Fatal(err)
+type Provider interface {
+	Type() string
+	Send(*Message) error
+	HTTPHandler() http.Handler
+}
+
+type ProviderConfig map[string]string
+type MakeProviderFunc func(*Service, ProviderConfig) (Provider, error)
+
+var (
+	providerTypesMu sync.RWMutex
+	providerTypes   = make(map[string]MakeProviderFunc)
+)
+
+func MakeProvider(typeName string, service *Service, config ProviderConfig) (Provider, error) {
+	providerTypesMu.RLock()
+	makeProvider, exists := providerTypes[typeName]
+	providerTypesMu.RUnlock()
+
+	if !exists {
+		return nil, errors.New("Invalid provider type " + typeName)
 	}
-
-	service, err := smsxmpp.NewService(config)
-	if err != nil {
-		log.Fatal(err)
+	return makeProvider(service, config)
+}
+func RegisterProviderType(name string, makeProvider MakeProviderFunc) {
+	providerTypesMu.Lock()
+	defer providerTypesMu.Unlock()
+	if makeProvider == nil {
+		panic("smsxmpp.RegisterProviderType: makeProvider argument is nil")
 	}
-
-	httpServer := http.Server{
-		Addr: config.HTTPServer,
-		Handler: service.HTTPHandler(),
+	if _, alreadyExists := providerTypes[name]; alreadyExists {
+		panic("smsxmpp.RegisterProviderType: called twice for type " + name)
 	}
-
-	go func() {
-		log.Fatal(httpServer.ListenAndServe())
-	}()
-
-	log.Fatal(service.RunXMPPComponent())
+	providerTypes[name] = makeProvider
 }

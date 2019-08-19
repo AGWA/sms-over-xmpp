@@ -25,38 +25,55 @@
  * authorization.
  */
 
-package main
+package twilio
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
-	"log"
-	"os"
-
-	"src.agwa.name/sms-over-xmpp"
-	"src.agwa.name/sms-over-xmpp/config"
-	_ "src.agwa.name/sms-over-xmpp/providers/twilio"
-	_ "src.agwa.name/sms-over-xmpp/providers/nexmo"
+	"net/url"
+	"io/ioutil"
+	"strings"
 )
 
-func main() {
-	config, err := config.FromDirectory(os.Args[1])
+type apiResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+
+	Sid   string   `json:"sid"`
+	Flags []string `json:"flags"`
+}
+
+func (provider *Provider) doTwilioRequest(service string, form url.Values) (*apiResponse, error) {
+	url := "https://api.twilio.com/2010-04-01/Accounts/" + provider.accountSID + "/" + service + ".json"
+	req, err := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(provider.keySID, provider.keySecret)
 
-	service, err := smsxmpp.NewService(config)
+	httpResp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
+	}
+	defer httpResp.Body.Close()
+	if !(httpResp.StatusCode >= 200 && httpResp.StatusCode <= 299) {
+		return nil, fmt.Errorf("HTTP error from Twilio: %s", httpResp.Status)
+	}
+	respBytes, err := ioutil.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("Error reading response from Twilio: %s", err)
 	}
 
-	httpServer := http.Server{
-		Addr: config.HTTPServer,
-		Handler: service.HTTPHandler(),
+	resp := new(apiResponse)
+	if err := json.Unmarshal(respBytes, resp); err != nil {
+		return nil, err
 	}
 
-	go func() {
-		log.Fatal(httpServer.ListenAndServe())
-	}()
+	if resp.Status != "queued" {
+		return nil, fmt.Errorf("Message could not be queued: %s: %s", resp.Status, resp.Message)
+	}
 
-	log.Fatal(service.RunXMPPComponent())
+	return resp, nil
 }

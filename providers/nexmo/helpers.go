@@ -25,38 +25,17 @@
  * authorization.
  */
 
-package main
+package nexmo
 
 import (
-	"net/http"
-	"log"
-	"os"
-
-	"src.agwa.name/sms-over-xmpp"
-	"src.agwa.name/sms-over-xmpp/config"
-	_ "src.agwa.name/sms-over-xmpp/providers/twilio"
-	_ "src.agwa.name/sms-over-xmpp/providers/nexmo"
+	"unicode"
 )
 
-func main() {
-	config, err := config.FromDirectory(os.Args[1])
-	if err != nil {
-		log.Fatal(err)
+func isASCII(str string) bool {
+	for i := 0; i < len(str); i++ {
+		if str[i] > unicode.MaxASCII {
+			return false
+		}
 	}
-
-	service, err := smsxmpp.NewService(config)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	httpServer := http.Server{
-		Addr: config.HTTPServer,
-		Handler: service.HTTPHandler(),
-	}
-
-	go func() {
-		log.Fatal(httpServer.ListenAndServe())
-	}()
-
-	log.Fatal(service.RunXMPPComponent())
+	return true
 }

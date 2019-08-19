@@ -25,38 +25,4 @@
  * authorization.
  */
 
-package main
-
-import (
-	"net/http"
-	"log"
-	"os"
-
-	"src.agwa.name/sms-over-xmpp"
-	"src.agwa.name/sms-over-xmpp/config"
-	_ "src.agwa.name/sms-over-xmpp/providers/twilio"
-	_ "src.agwa.name/sms-over-xmpp/providers/nexmo"
-)
-
-func main() {
-	config, err := config.FromDirectory(os.Args[1])
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	service, err := smsxmpp.NewService(config)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	httpServer := http.Server{
-		Addr: config.HTTPServer,
-		Handler: service.HTTPHandler(),
-	}
-
-	go func() {
-		log.Fatal(httpServer.ListenAndServe())
-	}()
-
-	log.Fatal(service.RunXMPPComponent())
-}
+package smsxmpp // import "src.agwa.name/sms-over-xmpp"

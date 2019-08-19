@@ -25,38 +25,24 @@
  * authorization.
  */
 
-package main
+package config
 
-import (
-	"net/http"
-	"log"
-	"os"
+type UserConfig struct {
+	PhoneNumber string // e.g. "+19255551212"
+	Provider    string
+}
 
-	"src.agwa.name/sms-over-xmpp"
-	"src.agwa.name/sms-over-xmpp/config"
-	_ "src.agwa.name/sms-over-xmpp/providers/twilio"
-	_ "src.agwa.name/sms-over-xmpp/providers/nexmo"
-)
+type ProviderConfig struct {
+	Type   string
+	Params map[string]string
+}
 
-func main() {
-	config, err := config.FromDirectory(os.Args[1])
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	service, err := smsxmpp.NewService(config)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	httpServer := http.Server{
-		Addr: config.HTTPServer,
-		Handler: service.HTTPHandler(),
-	}
-
-	go func() {
-		log.Fatal(httpServer.ListenAndServe())
-	}()
-
-	log.Fatal(service.RunXMPPComponent())
+type Config struct {
+	HTTPServer string // e.g. ":8080" or "127.0.0.1:8080"
+	XMPPServer string // e.g. "xmpp.example.com:5347"
+	XMPPDomain string // e.g. "sms.example.com"
+	XMPPSecret string
+	PublicURL  string
+	Users      map[string]UserConfig // Map from bare JID -> UserConfig
+	Providers  map[string]ProviderConfig
 }
