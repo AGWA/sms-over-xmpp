@@ -29,6 +29,7 @@ The parameters are:
 
 | Parameter     | Description                                                 |
 | ------------- | ----------------------------------------------------------- |
+| `http_server` | The local address and port number on which sms-over-xmpp should listen for webhooks |
 | `xmpp_server` | The hostname and port number of your XMPP server            |
 | `xmpp_domain` | The domain name of the XMPP component                       |
 | `xmpp_secret` | The secret for the XMPP component (chosen by you and shared with XMPP server) |
@@ -36,6 +37,7 @@ The parameters are:
 Example `config` file:
 
 ```
+http_server :8080
 xmpp_server xmpp.example.com:5347
 xmpp_domain sms.example.com
 xmpp_secret 6iLNu1YGNCcZyEqn
