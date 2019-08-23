@@ -37,6 +37,7 @@ import (
 	"encoding/json"
 
 	"src.agwa.name/sms-over-xmpp"
+	"src.agwa.name/sms-over-xmpp/httputil"
 )
 
 type Provider struct {
@@ -87,7 +88,7 @@ func (provider *Provider) HTTPHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/inbound-sms", provider.handleInboundSMS)
 	//mux.HandleFunc("/delivery-receipt", provider.handleDeliveryReceipt) TODO: handle delivery receipts
-	return smsxmpp.RequireHTTPAuthHandler(provider.httpPassword, mux)
+	return httputil.RequireHTTPAuthHandler(provider.httpPassword, mux)
 }
 
 func (provider *Provider) handleInboundSMS(w http.ResponseWriter, req *http.Request) {

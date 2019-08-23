@@ -34,6 +34,7 @@ import (
 	"strconv"
 
 	"src.agwa.name/sms-over-xmpp"
+	"src.agwa.name/sms-over-xmpp/httputil"
 )
 
 type Provider struct {
@@ -69,7 +70,7 @@ func (provider *Provider) HTTPHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/message", provider.handleMessage)
 	//mux.HandleFunc("/status_callback", provider.handleStatusCallback)
-	return smsxmpp.RequireHTTPAuthHandler(provider.httpPassword, mux)
+	return httputil.RequireHTTPAuthHandler(provider.httpPassword, mux)
 }
 
 func (provider *Provider) handleMessage(w http.ResponseWriter, req *http.Request) {

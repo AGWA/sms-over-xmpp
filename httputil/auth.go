@@ -25,7 +25,7 @@
  * authorization.
  */
 
-package smsxmpp
+package httputil
 
 import (
 	"crypto/subtle"
