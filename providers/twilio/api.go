@@ -45,7 +45,7 @@ type apiResponse struct {
 }
 
 func (provider *Provider) doTwilioRequest(service string, form url.Values) (*apiResponse, error) {
-	url := "https://api.twilio.com/2010-04-01/Accounts/" + provider.accountSID + "/" + service + ".json"
+	url := provider.apiURL + "/2010-04-01/Accounts/" + provider.accountSID + "/" + service + ".json"
 	req, err := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err

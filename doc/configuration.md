@@ -87,7 +87,7 @@ type of provider.
 
 | Parameter     | Description                                                 |
 | ------------- | ----------------------------------------------------------- |
-| `type`        | The type of provider: `twilio` or `nexmo`.                  |
+| `type`        | The type of provider: `twilio`, `signalwire`, or `nexmo`.   |
 
 ### Twilio-specific parameters
 
@@ -124,6 +124,43 @@ Replace:
 * `PROVIDER_NAME` with the name of the provider.
 
 Example webhook URL: `http://twilio:EDIVMA8HLvrZOV5N@example.com:8080/personal/message`
+
+Note: if you have placed sms-over-xmpp behind a reverse proxy, be sure to adjust
+the URL accordingly.
+
+### Signalwire-specific parameters
+
+| Parameter       | Description |
+| --------------- | ------------|
+| `domain`        | The domain of your SignalWire space (e.g. `example.signalwire.com`) |
+| `project_id`    | The ID of your SignalWire project |
+| `auth_token`    | Your SignalWire authentication token |
+| `http_password` | A password, chosen by you, that Signalwire must use when executing the webhook for incoming SMSes |
+
+Example config file for a Signalwire-type provider:
+
+```
+type            signalwire
+domain          example.signalwire.com
+project_id      YourProjectID
+auth_token      YoruAuthToken
+http_password   EDIVMA8HLvrZOV5N
+```
+
+### Signalwire webhook configuration
+
+You must configure your Signalwire account to invoke a webhook when you
+receive an incoming SMS.  The URL of the webhook follows this template:
+
+`http://signalwire:HTTP_PASSWORD@HOSTNAME:PORT/PROVIDER_NAME/message`
+
+Replace:
+
+* `HTTP_PASSWORD` with the password specified to the `http_password` parameter.
+* `HOSTNAME:PORT` with the public hostname and port number of your sms-over-xmpp server.
+* `PROVIDER_NAME` with the name of the provider.
+
+Example webhook URL: `http://signalwire:EDIVMA8HLvrZOV5N@example.com:8080/personal/message`
 
 Note: if you have placed sms-over-xmpp behind a reverse proxy, be sure to adjust
 the URL accordingly.

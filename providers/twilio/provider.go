@@ -40,6 +40,7 @@ import (
 type Provider struct {
 	service      *smsxmpp.Service
 
+	apiURL       string
 	accountSID   string
 	keySID       string
 	keySecret    string
@@ -109,6 +110,7 @@ func getMediaURLs(form url.Values) []string {
 func MakeProvider(service *smsxmpp.Service, config smsxmpp.ProviderConfig) (smsxmpp.Provider, error) {
 	return &Provider{
 		service: service,
+		apiURL: "https://api.twilio.com",
 		accountSID: config["account_sid"],
 		keySID: config["key_sid"],
 		keySecret: config["key_secret"],
@@ -116,6 +118,18 @@ func MakeProvider(service *smsxmpp.Service, config smsxmpp.ProviderConfig) (smsx
 	}, nil
 }
 
+func MakeSignalwireProvider(service *smsxmpp.Service, config smsxmpp.ProviderConfig) (smsxmpp.Provider, error) {
+	return &Provider{
+		service: service,
+		apiURL: "https://" + config["domain"] + "/api/laml",
+		accountSID: config["project_id"],
+		keySID: config["project_id"],
+		keySecret: config["auth_token"],
+		httpPassword: config["http_password"],
+	}, nil
+}
+
 func init() {
 	smsxmpp.RegisterProviderType("twilio", MakeProvider)
+	smsxmpp.RegisterProviderType("signalwire", MakeSignalwireProvider)
 }
