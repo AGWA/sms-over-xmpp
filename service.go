@@ -124,6 +124,7 @@ func (service *Service) Receive(message *Message) error {
 			To:   &address,
 		},
 		Body: message.Body,
+		Type: xmpp.CHAT,
 	}
 	// TODO: if message.MediaURLs is non-empty, include them using XEP-0066
 
