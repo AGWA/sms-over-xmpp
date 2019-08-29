@@ -128,16 +128,16 @@ Example webhook URL: `http://twilio:EDIVMA8HLvrZOV5N@example.com:8080/personal/m
 Note: if you have placed sms-over-xmpp behind a reverse proxy, be sure to adjust
 the URL accordingly.
 
-### Signalwire-specific parameters
+### SignalWire-specific parameters
 
 | Parameter       | Description |
 | --------------- | ------------|
 | `domain`        | The domain of your SignalWire space (e.g. `example.signalwire.com`) |
 | `project_id`    | The ID of your SignalWire project |
 | `auth_token`    | Your SignalWire authentication token |
-| `http_password` | A password, chosen by you, that Signalwire must use when executing the webhook for incoming SMSes |
+| `http_password` | A password, chosen by you, that SignalWire must use when executing the webhook for incoming SMSes |
 
-Example config file for a Signalwire-type provider:
+Example config file for a SignalWire-type provider:
 
 ```
 type            signalwire
@@ -147,9 +147,9 @@ auth_token      YoruAuthToken
 http_password   EDIVMA8HLvrZOV5N
 ```
 
-### Signalwire webhook configuration
+### SignalWire webhook configuration
 
-You must configure your Signalwire account to invoke a webhook when you
+You must configure your SignalWire account to invoke a webhook when you
 receive an incoming SMS.  The URL of the webhook follows this template:
 
 `http://signalwire:HTTP_PASSWORD@HOSTNAME:PORT/PROVIDER_NAME/message`
