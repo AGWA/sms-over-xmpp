@@ -117,16 +117,26 @@ func (service *Service) Receive(message *Message) error {
 	if !known {
 		return errors.New("Unknown phone number " + message.To)
 	}
+	from := xmpp.Address{message.From, service.xmppParams.Domain, ""}
 
+	if err := service.sendXMPPChat(from, address, message.Body); err != nil {
+		return err
+	}
+
+	// TODO: if message.MediaURLs is non-empty, send them using XEP-0066
+
+	return nil
+}
+
+func (service *Service) sendXMPPChat(from xmpp.Address, to xmpp.Address, body string) error {
 	xmppMessage := xmpp.Message{
 		Header: xmpp.Header{
-			From: &xmpp.Address{message.From, service.xmppParams.Domain, ""},
-			To:   &address,
+			From: &from,
+			To:   &to,
 		},
-		Body: message.Body,
+		Body: body,
 		Type: xmpp.CHAT,
 	}
-	// TODO: if message.MediaURLs is non-empty, include them using XEP-0066
 
 	select {
 	case service.xmppSendChan <- xmppMessage:
