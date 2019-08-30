@@ -188,9 +188,12 @@ func (service *Service) receiveXMPPMessage(ctx context.Context, xmppMessage *xmp
 	message := &Message{
 		From: user.phoneNumber,
 		To:   toPhoneNumber,
-		Body: xmppMessage.Body,
 	}
-	// TODO: if xmppMessage has XEP-0066 URLs, include them in message.MediaURLs
+	if xmppMessage.OutOfBandData != nil {
+		message.MediaURLs = append(message.MediaURLs, xmppMessage.OutOfBandData.URL)
+	} else {
+		message.Body = xmppMessage.Body
+	}
 
 	go func() {
 		err := user.provider.Send(message)
