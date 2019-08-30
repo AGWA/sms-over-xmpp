@@ -123,7 +123,11 @@ func (service *Service) Receive(message *Message) error {
 		return err
 	}
 
-	// TODO: if message.MediaURLs is non-empty, send them using XEP-0066
+	for _, mediaURL := range message.MediaURLs {
+		if err := service.sendXMPPMediaURL(from, address, mediaURL); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -143,6 +147,25 @@ func (service *Service) sendXMPPChat(from xmpp.Address, to xmpp.Address, body st
 		return nil
 	case <-time.After(5 * time.Second):
 		return errors.New("Timed out when sending XMPP message")
+	}
+}
+
+func (service *Service) sendXMPPMediaURL(from xmpp.Address, to xmpp.Address, mediaURL string) error {
+	xmppMessage := xmpp.Message{
+		Header: xmpp.Header{
+			From: &from,
+			To:   &to,
+		},
+		Body: mediaURL,
+		Type: xmpp.CHAT,
+		OutOfBandData: &xmpp.OutOfBandData{URL: mediaURL},
+	}
+
+	select {
+	case service.xmppSendChan <- xmppMessage:
+		return nil
+	case <-time.After(5 * time.Second):
+		return errors.New("Timed out when sending XMPP message with out-of-band data")
 	}
 }
 
