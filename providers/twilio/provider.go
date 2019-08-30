@@ -29,6 +29,7 @@ package twilio
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -91,7 +92,11 @@ func (provider *Provider) handleMessage(w http.ResponseWriter, req *http.Request
 		http.Error(w, "500 Internal Server Error: failed to receive message", 500)
 		return
 	}
-	w.WriteHeader(204)
+	// Note: while Twilio is OK with a 204 response, SignalWire is not, so we send
+	// back a simple <Response/> document that works with both providers.
+	w.Header().Set("Content-Type", "text/xml")
+	w.WriteHeader(200)
+	fmt.Fprintln(w, "<Response/>")
 }
 
 func getMediaURLs(form url.Values) []string {
