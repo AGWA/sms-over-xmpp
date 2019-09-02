@@ -58,12 +58,12 @@ func (provider *Provider) doTwilioRequest(service string, form url.Values) (*api
 		return nil, err
 	}
 	defer httpResp.Body.Close()
-	if !(httpResp.StatusCode >= 200 && httpResp.StatusCode <= 299) {
-		return nil, fmt.Errorf("HTTP error from Twilio: %s", httpResp.Status)
-	}
 	respBytes, err := ioutil.ReadAll(httpResp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading response from Twilio: %s", err)
+	}
+	if !(httpResp.StatusCode >= 200 && httpResp.StatusCode <= 299) {
+		return nil, fmt.Errorf("HTTP error from Twilio: %s: %s", httpResp.Status, respBytes)
 	}
 
 	resp := new(apiResponse)
