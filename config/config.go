@@ -42,6 +42,7 @@ type Config struct {
 	XMPPServer string // e.g. "xmpp.example.com:5347"
 	XMPPDomain string // e.g. "sms.example.com"
 	XMPPSecret string
+	DefaultPrefix string // e.g. "+1"; prepended to phone numbers that don't start with +
 	PublicURL  string
 	Users      map[string]UserConfig // Map from bare JID -> UserConfig
 	Providers  map[string]ProviderConfig

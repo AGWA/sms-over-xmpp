@@ -27,6 +27,19 @@
 
 package smsxmpp
 
-func isValidPhoneNumber(phoneNumber string) bool { // TODO
-	return true
+import (
+	"errors"
+	"strings"
+)
+
+func validatePhoneNumber(phoneNumber string) error {
+	if !strings.HasPrefix(phoneNumber, "+") {
+		return errors.New("does not start with +")
+	}
+	for _, c := range strings.TrimPrefix(phoneNumber, "+") {
+		if !(c >= '0' && c <= '9') {
+			return errors.New("contains non-numeric character")
+		}
+	}
+	return nil
 }

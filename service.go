@@ -34,6 +34,7 @@ import (
 	"net/http"
 	"os"
 	"log"
+	"strings"
 	"time"
 
 	"src.agwa.name/sms-over-xmpp/config"
@@ -47,6 +48,7 @@ type user struct {
 }
 
 type Service struct {
+	defaultPrefix   string // prepended to phone numbers that don't start with +
 	publicURL       string
 	users           map[xmpp.Address]user // Map from bare JID -> user
 	providers       map[string]Provider
@@ -55,7 +57,13 @@ type Service struct {
 }
 
 func NewService(config *config.Config) (*Service, error) {
+	if config.DefaultPrefix != "" {
+		if err := validatePhoneNumber(config.DefaultPrefix); err != nil {
+			return nil, fmt.Errorf("default_prefix option is invalid: %s", err)
+		}
+	}
 	service := &Service{
+		defaultPrefix: config.DefaultPrefix,
 		publicURL:   config.PublicURL,
 		users:       make(map[xmpp.Address]user),
 		providers:   make(map[string]Provider),
@@ -117,7 +125,7 @@ func (service *Service) Receive(message *Message) error {
 	if !known {
 		return errors.New("Unknown phone number " + message.To)
 	}
-	from := xmpp.Address{message.From, service.xmppParams.Domain, ""}
+	from := xmpp.Address{service.friendlyPhoneNumber(message.From), service.xmppParams.Domain, ""}
 
 	if err := service.sendXMPPChat(from, address, message.Body); err != nil {
 		return err
@@ -179,10 +187,9 @@ func (service *Service) receiveXMPPMessage(ctx context.Context, xmppMessage *xmp
 		return service.sendXMPPError(xmppMessage.To, xmppMessage.From, "Not authorized")
 	}
 
-	toPhoneNumber := xmppMessage.To.LocalPart
-	if !isValidPhoneNumber(toPhoneNumber) {
-		// TODO: more helpful error message: echo back toPhoneNumber and say what format it should be in
-		return service.sendXMPPError(xmppMessage.To, xmppMessage.From, "Invalid phone number")
+	toPhoneNumber, err := service.canonPhoneNumber(xmppMessage.To.LocalPart)
+	if err != nil {
+		return service.sendXMPPError(xmppMessage.To, xmppMessage.From, fmt.Sprintf("Invalid phone number '%s': %s (example: +12125551212)", xmppMessage.To.LocalPart, err))
 	}
 
 	message := &Message{
@@ -222,13 +229,15 @@ func (service *Service) receiveXMPPPresence(ctx context.Context, presence *xmpp.
 	}
 
 	if presence.Type == xmpp.SUBSCRIBE || presence.Type == xmpp.PROBE {
-		var err error
-		if isValidPhoneNumber(presence.To.LocalPart) {
-			err = service.sendXMPPPresence(presence.To, presence.From, "", "")
-		} else {
-			err = service.sendXMPPPresence(presence.To, presence.From, "error", "Invalid phone number")
+		var presenceType string
+		var status string
+
+		if _, err := service.canonPhoneNumber(presence.To.LocalPart); err != nil {
+			presenceType = "error"
+			status = "Invalid phone number: " + err.Error()
 		}
-		if err != nil {
+
+		if err := service.sendXMPPPresence(presence.To, presence.From, presenceType, status); err != nil {
 			return err
 		}
 	}
@@ -277,4 +286,18 @@ func (service *Service) addressForPhoneNumber(phoneNumber string) (xmpp.Address,
 		}
 	}
 	return xmpp.Address{}, false
+}
+
+func (service *Service) canonPhoneNumber(phoneNumber string) (string, error) {
+	if !strings.HasPrefix(phoneNumber, "+") {
+		if service.defaultPrefix == "" {
+			return "", errors.New("does not start with + (please prefix number with + and a country code, or configure the default_prefix option)")
+		}
+		phoneNumber = service.defaultPrefix + phoneNumber
+	}
+	return phoneNumber, validatePhoneNumber(phoneNumber)
+}
+
+func (service *Service) friendlyPhoneNumber(phoneNumber string) string {
+	return strings.TrimPrefix(phoneNumber, service.defaultPrefix)
 }
