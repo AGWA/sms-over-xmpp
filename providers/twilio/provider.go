@@ -93,10 +93,11 @@ func (provider *Provider) handleMessage(w http.ResponseWriter, req *http.Request
 		return
 	}
 	// Note: while Twilio is OK with a 204 response, SignalWire is not, so we send
-	// back a simple <Response/> document that works with both providers.
+	// back an empty response document that works with both providers.
 	w.Header().Set("Content-Type", "text/xml")
 	w.WriteHeader(200)
-	fmt.Fprintln(w, "<Response/>")
+	fmt.Fprintln(w, `<?xml version="1.0" encoding="UTF-8"?>`)
+	fmt.Fprintln(w, `<Response></Response>`)
 }
 
 func getMediaURLs(form url.Values) []string {
