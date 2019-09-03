@@ -177,9 +177,25 @@ func (service *Service) sendXMPPMediaURL(from xmpp.Address, to xmpp.Address, med
 	}
 }
 
+func shouldForwardMessageType(t xmpp.MessageType) bool {
+	return t == "" || t == xmpp.CHAT || t == xmpp.NORMAL
+}
+
+func messageHasContent(message *xmpp.Message) bool {
+	// This function filters out "$user is typing" messages
+	return message.Body != "" || message.OutOfBandData != nil
+}
+
+func shouldForwardMessage(message *xmpp.Message) bool {
+	return shouldForwardMessageType(message.Type) && messageHasContent(message)
+}
+
 func (service *Service) receiveXMPPMessage(ctx context.Context, xmppMessage *xmpp.Message) error {
 	if xmppMessage.From == nil || xmppMessage.To == nil {
 		return errors.New("Received malformed XMPP message: From and To not set")
+	}
+	if !shouldForwardMessage(xmppMessage) {
+		return nil
 	}
 	user, userExists := service.users[*xmppMessage.From.Bare()]
 	if !userExists {
