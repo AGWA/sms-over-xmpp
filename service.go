@@ -199,8 +199,7 @@ func (service *Service) receiveXMPPMessage(ctx context.Context, xmppMessage *xmp
 	}
 	user, userExists := service.users[*xmppMessage.From.Bare()]
 	if !userExists {
-		// TODO: more helpful error message: echo back xmppMessage.From.Bare() and say it's not in users map
-		return service.sendXMPPError(xmppMessage.To, xmppMessage.From, "Not authorized")
+		return service.sendXMPPError(xmppMessage.To, xmppMessage.From, xmppMessage.From.Bare().String() + " is not a known user; please add them to sms-over-xmpp's users file")
 	}
 
 	toPhoneNumber, err := service.canonPhoneNumber(xmppMessage.To.LocalPart)
