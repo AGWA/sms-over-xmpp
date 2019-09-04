@@ -92,8 +92,9 @@ func (provider *Provider) handleMessage(w http.ResponseWriter, req *http.Request
 		http.Error(w, "500 Internal Server Error: failed to receive message", 500)
 		return
 	}
-	// Note: while Twilio is OK with a 204 response, SignalWire is not, so we send
-	// back an empty response document that works with both providers.
+	// Note: while Twilio is OK with a 204 response, SignalWire requires this
+	// exact response document (XML declaration and non-self-closing <Response>),
+	// which fortunately works with Twilio also.
 	w.Header().Set("Content-Type", "text/xml")
 	w.WriteHeader(200)
 	fmt.Fprintln(w, `<?xml version="1.0" encoding="UTF-8"?>`)
