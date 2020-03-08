@@ -62,13 +62,15 @@ func (provider *Provider) sendSMS(form url.Values) (*sendSMSResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer httpResp.Body.Close()
-	if !(httpResp.StatusCode >= 200 && httpResp.StatusCode <= 299) {
-		return nil, fmt.Errorf("HTTP error from Nexmo: %s", httpResp.Status)
-	}
+
 	respBytes, err := ioutil.ReadAll(httpResp.Body)
+	httpResp.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("Error reading response from Nexmo: %s", err)
+	}
+
+	if !(httpResp.StatusCode >= 200 && httpResp.StatusCode <= 299) {
+		return nil, fmt.Errorf("HTTP error from Nexmo: %s", httpResp.Status)
 	}
 
 	resp := new(sendSMSResponse)
