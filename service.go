@@ -101,6 +101,14 @@ func NewService(config *config.Config) (*Service, error) {
 	return service, nil
 }
 
+func (service *Service) defaultHTTPHandler(w http.ResponseWriter, req *http.Request) {
+	if req.URL.Path == "/" {
+		http.Error(w, "You have successfully reached sms-over-xmpp.", 200)
+	} else {
+		http.Error(w, "You have reached sms-over-xmpp, but the provider indicated in the URL is not known.", 404)
+	}
+}
+
 func (service *Service) HTTPHandler() http.Handler {
 	mux := http.NewServeMux()
 	for name, provider := range service.providers {
@@ -108,6 +116,7 @@ func (service *Service) HTTPHandler() http.Handler {
 			mux.Handle("/" + name + "/", http.StripPrefix("/" + name, providerHandler))
 		}
 	}
+	mux.HandleFunc("/", service.defaultHTTPHandler)
 	return mux
 }
 
