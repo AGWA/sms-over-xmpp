@@ -35,6 +35,7 @@ import (
 	"os"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"src.agwa.name/sms-over-xmpp/config"
@@ -42,9 +43,40 @@ import (
 	"src.agwa.name/go-xmpp"
 )
 
+type RosterItem struct {
+	Name   string
+	Groups []string
+}
+
+func (item RosterItem) Equal(other RosterItem) bool {
+	if item.Name != other.Name {
+		return false
+	}
+	if len(item.Groups) != len(other.Groups) {
+		return false
+	}
+	for i := range item.Groups {
+		if item.Groups[i] != other.Groups[i] {
+			return false
+		}
+	}
+	return true
+}
+
+type Roster map[xmpp.Address]RosterItem
+
+var ErrRosterNotIntialized = errors.New("the roster for this user has not been initialized yet")
+
+type userState struct {
+	rosterMu sync.Mutex
+	roster   Roster
+}
+
 type user struct {
 	phoneNumber string // e.g. "+19255551212"
 	provider    Provider
+
+	state *userState
 }
 
 type Service struct {
@@ -96,6 +128,7 @@ func NewService(config *config.Config) (*Service, error) {
 		service.users[userAddress] = user{
 			phoneNumber: userConfig.PhoneNumber,
 			provider: userProvider,
+			state: new(userState),
 		}
 	}
 	return service, nil
@@ -136,6 +169,7 @@ func (service *Service) RunXMPPComponent(ctx context.Context) error {
 	callbacks := component.Callbacks{
 		Message: service.receiveXMPPMessage,
 		Presence: service.receiveXMPPPresence,
+		Iq: service.receiveXMPPIq,
 	}
 
 	return component.Run(ctx, service.xmppParams, callbacks, service.xmppSendChan)
@@ -274,6 +308,148 @@ func (service *Service) receiveXMPPPresence(ctx context.Context, presence *xmpp.
 		}
 	}
 
+	return nil
+}
+
+func (service *Service) receiveXMPPIq(ctx context.Context, iq *xmpp.Iq) error {
+	switch {
+	case iq.RosterQuery != nil:
+		return service.receiveXMPPRosterQuery(ctx, iq)
+	default:
+		return nil
+	}
+}
+
+func (service *Service) receiveXMPPRosterQuery(ctx context.Context, iq *xmpp.Iq) error {
+	if iq.From == nil || iq.To == nil {
+		return errors.New("Received malformed XMPP iq: From and To not set")
+	}
+
+	user, userExists := service.users[*iq.From.Bare()]
+	if !userExists {
+		return nil
+	}
+
+	switch iq.Type {
+	case "set":
+		return service.receiveXMPPRosterSet(ctx, user.state, iq.RosterQuery)
+	case "result":
+		return service.receiveXMPPRosterResult(ctx, user.state, iq.RosterQuery)
+	default:
+		return nil
+	}
+}
+
+func (service *Service) receiveXMPPRosterSet(ctx context.Context, user *userState, query *xmpp.RosterQuery) error {
+	user.rosterMu.Lock()
+	defer user.rosterMu.Unlock()
+
+	if user.roster == nil {
+		return nil
+	}
+	if len(query.Items) != 1 {
+		return nil
+	}
+	item := query.Items[0]
+	if item.Subscription == "remove" {
+		delete(user.roster, item.JID)
+	} else {
+		user.roster[item.JID] = RosterItem{
+			Name:   item.Name,
+			Groups: item.Groups,
+		}
+	}
+
+	return nil
+}
+
+func (service *Service) receiveXMPPRosterResult(ctx context.Context, user *userState, query *xmpp.RosterQuery) error {
+	user.rosterMu.Lock()
+	defer user.rosterMu.Unlock()
+
+	user.roster = make(Roster)
+	for _, item := range query.Items {
+		if item.Subscription == "remove" {
+			continue
+		}
+		user.roster[item.JID] = RosterItem{
+			Name:   item.Name,
+			Groups: item.Groups,
+		}
+	}
+
+	return nil
+}
+
+func replaceRoster(user *userState, newRoster Roster) ([]xmpp.RosterItem, error) {
+	user.rosterMu.Lock()
+	defer user.rosterMu.Unlock()
+	if user.roster == nil {
+		return nil, ErrRosterNotIntialized
+	}
+
+	changes := []xmpp.RosterItem{}
+
+	for jid, newItem := range newRoster {
+		curItem, exists := user.roster[jid]
+		if !exists || !curItem.Equal(newItem) {
+			user.roster[jid] = newItem
+			changes = append(changes, xmpp.RosterItem{
+				JID:          jid,
+				Name:         newItem.Name,
+				Subscription: "both",
+				Groups:       newItem.Groups,
+			})
+		}
+	}
+	for jid := range user.roster {
+		_, exists := newRoster[jid]
+		if !exists {
+			delete(user.roster, jid)
+			changes = append(changes, xmpp.RosterItem{
+				JID:          jid,
+				Subscription: "remove",
+			})
+		}
+	}
+
+	return changes, nil
+}
+
+func (service *Service) SetRoster(ctx context.Context, userJID xmpp.Address, newRoster Roster) error {
+	user, userExists := service.users[userJID]
+	if !userExists {
+		return errors.New("no such user")
+	}
+
+	changes, err := replaceRoster(user.state, newRoster)
+	if err != nil {
+		return err
+	}
+
+	for _, changedItem := range changes {
+		query := xmpp.RosterQuery{
+			Items: []xmpp.RosterItem{changedItem},
+		}
+		if err := service.sendXMPPRosterQuery(xmpp.RandomID(), userJID, "set", query); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (service *Service) sendXMPPRosterQuery(id string, to xmpp.Address, iqType string, query xmpp.RosterQuery) error {
+	iq := &xmpp.Iq{
+		Header: xmpp.Header{
+			ID: id,
+			To: &to,
+		},
+		Type: iqType,
+		RosterQuery: &query,
+	}
+	if !service.sendWithin(5*time.Second, iq) {
+		return errors.New("Timed out when sending XMPP iq message")
+	}
 	return nil
 }
 
