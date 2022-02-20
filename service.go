@@ -101,6 +101,18 @@ func NewService(config *config.Config) (*Service, error) {
 	return service, nil
 }
 
+func (service *Service) sendWithin(timeout time.Duration, v interface{}) bool {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case service.xmppSendChan <- v:
+		return true
+	case <-timer.C:
+		return false
+	}
+}
+
 func (service *Service) defaultHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	if req.URL.Path == "/" {
 		http.Error(w, "You have successfully reached sms-over-xmpp.", 200)
@@ -159,12 +171,10 @@ func (service *Service) sendXMPPChat(from xmpp.Address, to xmpp.Address, body st
 		Type: xmpp.CHAT,
 	}
 
-	select {
-	case service.xmppSendChan <- xmppMessage:
-		return nil
-	case <-time.After(5 * time.Second):
+	if !service.sendWithin(5*time.Second, xmppMessage) {
 		return errors.New("Timed out when sending XMPP message")
 	}
+	return nil
 }
 
 func (service *Service) sendXMPPMediaURL(from xmpp.Address, to xmpp.Address, mediaURL string) error {
@@ -178,12 +188,10 @@ func (service *Service) sendXMPPMediaURL(from xmpp.Address, to xmpp.Address, med
 		OutOfBandData: &xmpp.OutOfBandData{URL: mediaURL},
 	}
 
-	select {
-	case service.xmppSendChan <- xmppMessage:
-		return nil
-	case <-time.After(5 * time.Second):
+	if !service.sendWithin(5*time.Second, xmppMessage) {
 		return errors.New("Timed out when sending XMPP message with out-of-band data")
 	}
+	return nil
 }
 
 func shouldForwardMessageType(t xmpp.MessageType) bool {
@@ -278,12 +286,10 @@ func (service *Service) sendXMPPError(from *xmpp.Address, to *xmpp.Address, mess
 		Type: xmpp.ERROR,
 		Body: message,
 	}
-	select {
-	case service.xmppSendChan <- xmppMessage:
-		return nil
-	case <-time.After(5 * time.Second):
+	if !service.sendWithin(5*time.Second, xmppMessage) {
 		return errors.New("Timed out when sending XMPP error message")
 	}
+	return nil
 }
 
 func (service *Service) sendXMPPPresence(from *xmpp.Address, to *xmpp.Address, presenceType string, status string) error {
@@ -295,12 +301,10 @@ func (service *Service) sendXMPPPresence(from *xmpp.Address, to *xmpp.Address, p
 		Type: presenceType,
 		Status: status,
 	}
-	select {
-	case service.xmppSendChan <- xmppPresence:
-		return nil
-	case <-time.After(5 * time.Second):
+	if !service.sendWithin(5*time.Second, xmppPresence) {
 		return errors.New("Timed out when sending XMPP presence")
 	}
+	return nil
 }
 
 func (service *Service) addressForPhoneNumber(phoneNumber string) (xmpp.Address, bool) {
