@@ -28,6 +28,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"log"
 	"os"
@@ -58,5 +59,5 @@ func main() {
 		log.Fatal(httpServer.ListenAndServe())
 	}()
 
-	log.Fatal(service.RunXMPPComponent())
+	log.Fatal(service.RunXMPPComponent(context.Background()))
 }

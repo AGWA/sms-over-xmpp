@@ -120,13 +120,13 @@ func (service *Service) HTTPHandler() http.Handler {
 	return mux
 }
 
-func (service *Service) RunXMPPComponent() error {
+func (service *Service) RunXMPPComponent(ctx context.Context) error {
 	callbacks := component.Callbacks{
 		Message: service.receiveXMPPMessage,
 		Presence: service.receiveXMPPPresence,
 	}
 
-	return component.Run(context.Background(), service.xmppParams, callbacks, service.xmppSendChan)
+	return component.Run(ctx, service.xmppParams, callbacks, service.xmppSendChan)
 }
 
 func (service *Service) Receive(message *Message) error {
