@@ -1,16 +1,66 @@
 package smsxmpp
 
 import (
+	"context"
 	"github.com/emersion/go-webdav/carddav"
 	"github.com/emersion/go-vcard"
 	"src.agwa.name/go-xmpp"
+
+	"log"
 )
 
-type addressBook map[string]*carddav.AddressObject
+type addressBook struct {
+	changed   bool
+	syncToken string
+	entries   map[string]carddav.AddressObject // map from path -> object
+}
 
-func (addrbook addressBook) makeRoster(domain string) Roster {
+func (addrbook *addressBook) download(ctx context.Context, client *carddav.Client) error {
+	log.Printf("Sync token = %q", addrbook.syncToken)
+	response, err := client.SyncCollection("", &carddav.SyncQuery{
+		DataRequest: carddav.AddressDataRequest{AllProp: true},
+		SyncToken:   addrbook.syncToken,
+	})
+	if err != nil {
+		return err
+	}
+	if err := addrbook.downloadObjects(ctx, client, response.Updated); err != nil {
+		return err
+	}
+
+	if addrbook.entries == nil {
+		addrbook.entries = make(map[string]carddav.AddressObject)
+		addrbook.changed = true
+	}
+	for _, updatedObject := range response.Updated {
+		log.Printf("Adding %#v to address book", updatedObject)
+		addrbook.entries[updatedObject.Path] = updatedObject
+		addrbook.changed = true
+	}
+	for _, deletedPath := range response.Deleted {
+		log.Printf("Deleting %s from address book", deletedPath)
+		delete(addrbook.entries, deletedPath)
+		addrbook.changed = true
+	}
+	addrbook.syncToken = response.SyncToken
+	return nil
+}
+
+func (addrbook *addressBook) downloadObjects(ctx context.Context, client *carddav.Client, objects []carddav.AddressObject) error {
+	// TODO: download objects in parallel
+	for i := range objects {
+		object, err := client.GetAddressObject(objects[i].Path)
+		if err != nil {
+			return err
+		}
+		objects[i] = *object
+	}
+	return nil
+}
+
+func (addrbook *addressBook) makeRoster(domain string) Roster {
 	roster := make(Roster)
-	for _, object := range addrbook {
+	for _, object := range addrbook.entries {
 		name := object.Card.PreferredValue(vcard.FieldFormattedName)
 		cellNumber := getVcardCellNumber(object.Card)
 		if name != "" && cellNumber != "" {

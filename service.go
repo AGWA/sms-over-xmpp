@@ -220,46 +220,16 @@ func (service *Service) runAddressBookUpdaterFor(ctx context.Context, userJID xm
 	if err != nil {
 		return fmt.Errorf("unable to create CardDAV client for %s: %w", userJID, err)
 	}
-	addrbook := make(addressBook)
-	addrbookChanged := true
-	syncToken := ""
+	addrbook := new(addressBook)
 	for {
-		log.Printf("%s: Sync token = %q", userJID, syncToken)
-		response, err := client.SyncCollection("", &carddav.SyncQuery{
-			DataRequest: carddav.AddressDataRequest{AllProp: true},
-			SyncToken:   syncToken,
-		})
-		if err != nil {
+		if err := addrbook.download(ctx, client); err != nil {
 			log.Printf("Error downloading address book for %s: %s", userJID, err)
-		} else if len(response.Updated) > 0 || len(response.Deleted) > 0 {
-			successful := true
-			// TODO: download objects in parallel
-			for _, updatedObject := range response.Updated {
-				fullObject, err := client.GetAddressObject(updatedObject.Path)
-				if err != nil {
-					log.Printf("Error downloading address book for %s: %s", userJID, err)
-					successful = false
-					continue
-				}
-				log.Printf("%s: Adding %#v to address book", userJID, fullObject)
-				addrbook[fullObject.Path] = fullObject
-			}
-
-			for _, deletedPath := range response.Deleted {
-				log.Printf("%s: Deleting %s from address book", userJID, deletedPath)
-				delete(addrbook, deletedPath)
-			}
-
-			if successful {
-				syncToken = response.SyncToken
-			}
-			addrbookChanged = true
 		}
-		if addrbookChanged {
+		if addrbook.changed {
 			newRoster := addrbook.makeRoster(service.xmppParams.Domain)
 			log.Printf("%s: Setting roster = %#v", userJID, newRoster)
 			if err := service.setRoster(ctx, userJID, user, newRoster); err == nil {
-				addrbookChanged = false
+				addrbook.changed = false
 			} else if err != ErrRosterNotIntialized {
 				log.Printf("Error setting roster for %s: %s", userJID, err)
 			}
