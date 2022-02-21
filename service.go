@@ -160,12 +160,12 @@ func NewService(config *config.Config) (*Service, error) {
 	return service, nil
 }
 
-func (service *Service) sendWithin(timeout time.Duration, v interface{}) bool {
+func (service *Service) sendWithin(timeout time.Duration, stanza interface{}) bool {
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
 	select {
-	case service.xmppSendChan <- v:
+	case service.xmppSendChan <- stanza:
 		return true
 	case <-timer.C:
 		return false
@@ -523,7 +523,7 @@ func (service *Service) sendXMPPRosterQuery(id string, to xmpp.Address, iqType s
 		RosterQuery: &query,
 	}
 	if !service.sendWithin(5*time.Second, iq) {
-		return errors.New("Timed out when sending XMPP iq message")
+		return errors.New("Timed out when sending XMPP iq stanza")
 	}
 	return nil
 }
