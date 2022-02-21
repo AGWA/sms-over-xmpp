@@ -136,5 +136,9 @@ func FromDirectory(dirpath string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	config.Rosters, err = loadConfigFile(filepath.Join(dirpath, "rosters"))
+	if err != nil {
+		return nil, err
+	}
 	return config, nil
 }

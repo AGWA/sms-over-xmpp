@@ -46,4 +46,5 @@ type Config struct {
 	PublicURL  string
 	Users      map[string]UserConfig // Map from bare JID -> UserConfig
 	Providers  map[string]ProviderConfig
+	Rosters    map[string]string // Map from bare JID -> CardDAV URL
 }

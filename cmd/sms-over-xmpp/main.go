@@ -59,5 +59,11 @@ func main() {
 		log.Fatal(httpServer.ListenAndServe())
 	}()
 
+	go func() {
+		if err := service.RunAddressBookUpdater(context.Background()); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
 	log.Fatal(service.RunXMPPComponent(context.Background()))
 }

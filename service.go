@@ -38,6 +38,9 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+	"github.com/emersion/go-webdav/carddav"
+
 	"src.agwa.name/sms-over-xmpp/config"
 	"src.agwa.name/go-xmpp/component"
 	"src.agwa.name/go-xmpp"
@@ -67,22 +70,33 @@ type Roster map[xmpp.Address]RosterItem
 
 var ErrRosterNotIntialized = errors.New("the roster for this user has not been initialized yet")
 
-type userState struct {
+const rosterSyncInterval = 15*time.Second
+
+type rosterUser struct {
+	carddavURL string
+
+	syncChan chan struct{}
 	rosterMu sync.Mutex
 	roster   Roster
+}
+
+func (roster *rosterUser) forceSync() {
+	select {
+	case roster.syncChan <- struct{}{}:
+	default:
+	}
 }
 
 type user struct {
 	phoneNumber string // e.g. "+19255551212"
 	provider    Provider
-
-	state *userState
 }
 
 type Service struct {
 	defaultPrefix   string // prepended to phone numbers that don't start with +
 	publicURL       string
 	users           map[xmpp.Address]user // Map from bare JID -> user
+	rosterUsers     map[xmpp.Address]*rosterUser // Map from bare JID -> *rosterUser
 	providers       map[string]Provider
 	xmppParams      component.Params
 	xmppSendChan    chan interface{}
@@ -98,6 +112,7 @@ func NewService(config *config.Config) (*Service, error) {
 		defaultPrefix: config.DefaultPrefix,
 		publicURL:   config.PublicURL,
 		users:       make(map[xmpp.Address]user),
+		rosterUsers: make(map[xmpp.Address]*rosterUser),
 		providers:   make(map[string]Provider),
 		xmppParams:  component.Params{
 			Domain: config.XMPPDomain,
@@ -128,9 +143,20 @@ func NewService(config *config.Config) (*Service, error) {
 		service.users[userAddress] = user{
 			phoneNumber: userConfig.PhoneNumber,
 			provider: userProvider,
-			state: new(userState),
 		}
 	}
+
+	for userJID, carddavURL := range config.Rosters {
+		userAddress, err := xmpp.ParseAddress(userJID)
+		if err != nil {
+			return nil, fmt.Errorf("User %s has malformed JID: %s", userJID, err)
+		}
+		service.rosterUsers[userAddress] = &rosterUser{
+			carddavURL: carddavURL,
+			syncChan:   make(chan struct{}, 1),
+		}
+	}
+
 	return service, nil
 }
 
@@ -173,6 +199,82 @@ func (service *Service) RunXMPPComponent(ctx context.Context) error {
 	}
 
 	return component.Run(ctx, service.xmppParams, callbacks, service.xmppSendChan)
+}
+
+func (service *Service) RunAddressBookUpdater(ctx context.Context) error {
+	group, ctx := errgroup.WithContext(ctx)
+	for userJID, user := range service.rosterUsers {
+		userJID, user := userJID, user
+		group.Go(func() error {
+			return service.runAddressBookUpdaterFor(ctx, userJID, user)
+		})
+	}
+	return group.Wait()
+}
+
+func (service *Service) runAddressBookUpdaterFor(ctx context.Context, userJID xmpp.Address, user *rosterUser) error {
+	if err := service.sendXMPPRosterQuery(xmpp.RandomID(), userJID, "get", xmpp.RosterQuery{}); err != nil {
+		return fmt.Errorf("unable to query roster for %s: %w", userJID, err)
+	}
+	client, err := carddav.NewClient(http.DefaultClient, user.carddavURL)
+	if err != nil {
+		return fmt.Errorf("unable to create CardDAV client for %s: %w", userJID, err)
+	}
+	addrbook := make(addressBook)
+	addrbookChanged := true
+	syncToken := ""
+	for {
+		log.Printf("%s: Sync token = %q", userJID, syncToken)
+		response, err := client.SyncCollection("", &carddav.SyncQuery{
+			DataRequest: carddav.AddressDataRequest{AllProp: true},
+			SyncToken:   syncToken,
+		})
+		if err != nil {
+			log.Printf("Error downloading address book for %s: %s", userJID, err)
+		} else if len(response.Updated) > 0 || len(response.Deleted) > 0 {
+			successful := true
+			// TODO: download objects in parallel
+			for _, updatedObject := range response.Updated {
+				fullObject, err := client.GetAddressObject(updatedObject.Path)
+				if err != nil {
+					log.Printf("Error downloading address book for %s: %s", userJID, err)
+					successful = false
+					continue
+				}
+				log.Printf("%s: Adding %#v to address book", userJID, fullObject)
+				addrbook[fullObject.Path] = fullObject
+			}
+
+			for _, deletedPath := range response.Deleted {
+				log.Printf("%s: Deleting %s from address book", userJID, deletedPath)
+				delete(addrbook, deletedPath)
+			}
+
+			if successful {
+				syncToken = response.SyncToken
+			}
+			addrbookChanged = true
+		}
+		if addrbookChanged {
+			newRoster := addrbook.makeRoster(service.xmppParams.Domain)
+			log.Printf("%s: Setting roster = %#v", userJID, newRoster)
+			if err := service.setRoster(ctx, userJID, user, newRoster); err == nil {
+				addrbookChanged = false
+			} else if err != ErrRosterNotIntialized {
+				log.Printf("Error setting roster for %s: %s", userJID, err)
+			}
+		}
+
+		timeout := time.NewTimer(rosterSyncInterval)
+		select {
+		case <-timeout.C:
+		case <-user.syncChan:
+			timeout.Stop()
+		case <-ctx.Done():
+			timeout.Stop()
+			return ctx.Err()
+		}
+	}
 }
 
 func (service *Service) Receive(message *Message) error {
@@ -325,22 +427,22 @@ func (service *Service) receiveXMPPRosterQuery(ctx context.Context, iq *xmpp.Iq)
 		return errors.New("Received malformed XMPP iq: From and To not set")
 	}
 
-	user, userExists := service.users[*iq.From.Bare()]
+	user, userExists := service.rosterUsers[*iq.From.Bare()]
 	if !userExists {
 		return nil
 	}
 
 	switch iq.Type {
 	case "set":
-		return service.receiveXMPPRosterSet(ctx, user.state, iq.RosterQuery)
+		return service.receiveXMPPRosterSet(ctx, user, iq.RosterQuery)
 	case "result":
-		return service.receiveXMPPRosterResult(ctx, user.state, iq.RosterQuery)
+		return service.receiveXMPPRosterResult(ctx, user, iq.RosterQuery)
 	default:
 		return nil
 	}
 }
 
-func (service *Service) receiveXMPPRosterSet(ctx context.Context, user *userState, query *xmpp.RosterQuery) error {
+func (service *Service) receiveXMPPRosterSet(ctx context.Context, user *rosterUser, query *xmpp.RosterQuery) error {
 	user.rosterMu.Lock()
 	defer user.rosterMu.Unlock()
 
@@ -363,7 +465,7 @@ func (service *Service) receiveXMPPRosterSet(ctx context.Context, user *userStat
 	return nil
 }
 
-func (service *Service) receiveXMPPRosterResult(ctx context.Context, user *userState, query *xmpp.RosterQuery) error {
+func (service *Service) receiveXMPPRosterResult(ctx context.Context, user *rosterUser, query *xmpp.RosterQuery) error {
 	user.rosterMu.Lock()
 	defer user.rosterMu.Unlock()
 
@@ -381,7 +483,7 @@ func (service *Service) receiveXMPPRosterResult(ctx context.Context, user *userS
 	return nil
 }
 
-func replaceRoster(user *userState, newRoster Roster) ([]xmpp.RosterItem, error) {
+func replaceRoster(user *rosterUser, newRoster Roster) ([]xmpp.RosterItem, error) {
 	user.rosterMu.Lock()
 	defer user.rosterMu.Unlock()
 	if user.roster == nil {
@@ -417,12 +519,15 @@ func replaceRoster(user *userState, newRoster Roster) ([]xmpp.RosterItem, error)
 }
 
 func (service *Service) SetRoster(ctx context.Context, userJID xmpp.Address, newRoster Roster) error {
-	user, userExists := service.users[userJID]
+	user, userExists := service.rosterUsers[userJID]
 	if !userExists {
 		return errors.New("no such user")
 	}
+	return service.setRoster(ctx, userJID, user, newRoster)
+}
 
-	changes, err := replaceRoster(user.state, newRoster)
+func (service *Service) setRoster(ctx context.Context, userJID xmpp.Address, user *rosterUser, newRoster Roster) error {
+	changes, err := replaceRoster(user, newRoster)
 	if err != nil {
 		return err
 	}
