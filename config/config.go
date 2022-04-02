@@ -38,7 +38,6 @@ type ProviderConfig struct {
 }
 
 type Config struct {
-	HTTPServer string // e.g. ":8080" or "127.0.0.1:8080"
 	XMPPServer string // e.g. "xmpp.example.com:5347"
 	XMPPDomain string // e.g. "sms.example.com"
 	XMPPSecret string

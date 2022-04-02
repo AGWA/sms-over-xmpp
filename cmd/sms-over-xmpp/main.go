@@ -29,10 +29,12 @@ package main
 
 import (
 	"context"
+	"flag"
+	"net"
 	"net/http"
 	"log"
-	"os"
 
+	"src.agwa.name/go-listener"
 	"src.agwa.name/sms-over-xmpp"
 	"src.agwa.name/sms-over-xmpp/config"
 	_ "src.agwa.name/sms-over-xmpp/providers/twilio"
@@ -40,10 +42,34 @@ import (
 )
 
 func main() {
-	config, err := config.FromDirectory(os.Args[1])
+	var flags struct {
+		config string
+		listen []string
+	}
+	flag.StringVar(&flags.config, "config", "", "Path to config directory")
+	flag.Func("listen", "Socket to listen on (repeatable)", func(arg string) error {
+		flags.listen = append(flags.listen, arg)
+		return nil
+	})
+	flag.Parse()
+
+	if flags.config == "" {
+		log.Fatal("-config flag not specified")
+	}
+	if len(flags.listen) == 0 {
+		log.Fatal("-listen flag not specified")
+	}
+
+	config, err := config.FromDirectory(flags.config)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	listeners, err := listener.OpenAll(flags.listen)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer listener.CloseAll(listeners)
 
 	service, err := smsxmpp.NewService(config)
 	if err != nil {
@@ -51,13 +77,14 @@ func main() {
 	}
 
 	httpServer := http.Server{
-		Addr: config.HTTPServer,
 		Handler: service.HTTPHandler(),
 	}
 
-	go func() {
-		log.Fatal(httpServer.ListenAndServe())
-	}()
+	for _, l := range listeners {
+		go func(l net.Listener) {
+			log.Fatal(httpServer.Serve(l))
+		}(l)
+	}
 
 	go func() {
 		if err := service.RunAddressBookUpdater(context.Background()); err != nil {

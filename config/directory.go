@@ -123,7 +123,6 @@ func FromDirectory(dirpath string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	config.HTTPServer = params["http_server"]
 	config.XMPPServer = params["xmpp_server"]
 	config.XMPPDomain = params["xmpp_domain"]
 	config.XMPPSecret = params["xmpp_secret"]
