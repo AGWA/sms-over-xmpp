@@ -14,3 +14,9 @@ golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9sn
 golang.org/x/text v0.3.3 h1:cokOdA+Jmi5PJGXLlLllQSgYigAEfHXJAERHVMaCc2k=
 golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
 golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+src.agwa.name/go-listener v0.1.0 h1:NQbNkgSZ0dQV1tEYy2YsVjrSBm0GOIiveg3IknuKBFI=
+src.agwa.name/go-listener v0.1.0/go.mod h1:jitkAgaNrvQ/EFaVPO/aIJytWYdF6Bk2Gmbbm8hw14Y=
+src.agwa.name/go-listener v0.1.1 h1:XsPO25G32Xs7idcuDrzCqnoV0CrIcRY0q+EQQ5xLn2o=
+src.agwa.name/go-listener v0.1.1/go.mod h1:jitkAgaNrvQ/EFaVPO/aIJytWYdF6Bk2Gmbbm8hw14Y=
+src.agwa.name/go-xmpp v0.1.0 h1:ZPQqE9CkTMSz9raBEcMQkaDsJ0CrHdS5A6akVkM9/oE=
+src.agwa.name/go-xmpp v0.1.0/go.mod h1:GFRufOnQZ4x954Q9RCJ0HT2ZI/V47jAw5wy/bTfboZw=
