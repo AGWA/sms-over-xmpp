@@ -1,12 +1,35 @@
 # sms-over-xmpp configuration
 
-sms-over-xmpp is configured by a collection of text files in a common
-configuration directory.  The configuration directory must contain at
-least three files:
+sms-over-xmpp is configured by command line arguments in conjunction
+with text files in a configuration directory.
+
+## Command line arguments
+
+### `-listen LISTENER` (Mandatory)
+
+Listen on the given address, provided in [go-listener
+syntax](https://pkg.go.dev/src.agwa.name/go-listener#readme-listener-syntax).
+You can specify the `-listen` flag multiple times to listen on multiple
+addresses.
+
+Examples:
+* `-listen tcp:8080` to listen on TCP port 8080, all interfaces.
+* `-listen tcp:192.0.2.4:8080` to listen on TCP port 8080 on 192.0.2.4.
+* `-listen tls:sms.example.com:tcp:443` to listen on TCP port 443 with an automatically-obtained HTTPS certificate for `sms.example.com`
+
+### `-config PATH` (Mandatory)
+
+Specifies the path to the configuration directory, which must be organized
+as described below.
+
+## Configuration directory
+
+The configuration directory contains these files:
 
 * General configuration, in a file named `config`
 * The users map, in a file named `users`
 * At least one provider configuration file in a file named `providers/NAME`, where `NAME` identifies the provider and can be anything you want
+* (Optional) The rosters map, in a file named `rosters`
 
 ## Example directory structure
 
@@ -16,6 +39,7 @@ users
 providers/
   personal
   work
+rosters
 ```
 
 ## The config file
@@ -29,7 +53,6 @@ The parameters are:
 
 | Parameter     | Description                                                 |
 | ------------- | ----------------------------------------------------------- |
-| `http_server` | The local address and port number on which sms-over-xmpp should listen for webhooks |
 | `xmpp_server` | The hostname and _component_ port number of your XMPP server |
 | `xmpp_domain` | The domain name of the XMPP component                       |
 | `xmpp_secret` | The secret for the XMPP component (chosen by you and shared with XMPP server) |
@@ -37,7 +60,6 @@ The parameters are:
 Example `config` file:
 
 ```
-http_server :8080
 xmpp_server xmpp.example.com:5347
 xmpp_domain sms.example.com
 xmpp_secret 6iLNu1YGNCcZyEqn
@@ -69,6 +91,23 @@ Example `users` map:
 andrew@example.com personal:+12125551212
 jon@example.com    personal:+14015551122
 sales@example.com  work:+14155551221
+```
+
+## The rosters map (optional)
+
+The `rosters` file contains a mapping from XMPP users to CardDAV URLs.
+For each entry in this file, sms-over-xmpp will synchronize the address
+book at the given URL to the XMPP user's roster.
+
+The XMPP server must support
+[XEP-0321](https://xmpp.org/extensions/xep-0321.html).  For Prosody,
+you can use [mod_remote_roster](../contrib/mod_remote_roster.lua).
+
+Example `rosters` map:
+
+```
+andrew@example.com https://andrew:password123@carddav.example.com/andrew/fbacc20f-99ca-4bde-afce-cc05880bdac0/
+jon@example.com    https://jon:qwertyuiop@carddav.example.com/jon/5c9b9975-733f-4374-a0a9-dfdfda2f7ba5/
 ```
 
 ## Provider config
