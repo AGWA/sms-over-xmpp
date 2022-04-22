@@ -18,12 +18,14 @@ send you an SMS, you receive an XMPP message.
 
 ### MMS
 
-Sending MMS requires your XMPP client/server to support:
+sms-over-xmpp can send and receive MMS messages containing images.
+
+To send MMS, your XMPP client/server must support:
 
 * XEP-0363 (HTTP File Upload)
 * XEP-0066 (Out of Band Data)
 
-Receiving MMS requires your client to support:
+To receive MMS, your XMPP client must support:
 
 * XEP-0066 (Out of Band Data)
 
@@ -42,7 +44,10 @@ propagated to your address book, and may be reverted.
 
 Your XMPP server must support
 [XEP-0321](https://xmpp.org/extensions/xep-0321.html).  For Prosody,
-you can use [mod_remote_roster](contrib/mod_remote_roster.lua).
+you can use [mod_remote_roster](contrib/mod_remote_roster.lua).  Note
+that as of April 22, 2022, the version of `mod_remote_roster` that ships
+with `prosody-modules` has a bug.  A patch has been submitted upstream;
+in the meantime, use [this version](contrib/mod_remote_roster.lua).
 
 ## Documentation
 

@@ -31,7 +31,7 @@ The configuration directory contains these files:
 * At least one provider configuration file in a file named `providers/NAME`, where `NAME` identifies the provider and can be anything you want
 * (Optional) The rosters map, in a file named `rosters`
 
-## Example directory structure
+### Example directory structure
 
 ```
 config
@@ -42,7 +42,7 @@ providers/
 rosters
 ```
 
-## The config file
+### The config file
 
 General configuration is located in a file named `config`.
 Each line in the file consists of a parameter name, whitespace,
@@ -65,7 +65,7 @@ xmpp_domain sms.example.com
 xmpp_secret 6iLNu1YGNCcZyEqn
 ```
 
-## The users map
+### The users map
 
 A mapping of XMPP users to phone numbers is located in a file named `users`.
 Each line in the file consists of a bare Jabber ID (e.g. `andrew@example.com`),
@@ -93,7 +93,7 @@ jon@example.com    personal:+14015551122
 sales@example.com  work:+14155551221
 ```
 
-## The rosters map (optional)
+### The rosters map (optional)
 
 The `rosters` file contains a mapping from XMPP users to CardDAV URLs.
 For each entry in this file, sms-over-xmpp will synchronize the address
@@ -110,7 +110,7 @@ andrew@example.com https://andrew:password123@carddav.example.com/andrew/fbacc20
 jon@example.com    https://jon:qwertyuiop@carddav.example.com/jon/5c9b9975-733f-4374-a0a9-dfdfda2f7ba5/
 ```
 
-## Provider config
+### Provider config
 
 Configuration for an SMS provider is located in the `providers`
 sub-directory in a file with a name that you choose to identify the
@@ -122,13 +122,13 @@ A provider config file contains both parameters which are common
 to all types of providers, and parameters which are specific to the
 type of provider.
 
-### Common parameters
+#### Common parameters
 
 | Parameter     | Description                                                 |
 | ------------- | ----------------------------------------------------------- |
 | `type`        | The type of provider: `twilio`, `signalwire`, or `nexmo`.   |
 
-### Twilio-specific parameters
+#### Twilio-specific parameters
 
 | Parameter       | Description |
 | --------------- | ------------|
@@ -149,7 +149,7 @@ key_secret      ...
 http_password   EDIVMA8HLvrZOV5N
 ```
 
-### Twilio webhook configuration
+#### Twilio webhook configuration
 
 You must configure your Twilio account to invoke a webhook when you
 receive an incoming SMS.  The URL of the webhook follows this template:
@@ -167,7 +167,7 @@ Example webhook URL: `http://twilio:EDIVMA8HLvrZOV5N@example.com:8080/personal/m
 Note: if you have placed sms-over-xmpp behind a reverse proxy, be sure to adjust
 the URL accordingly.
 
-### SignalWire-specific parameters
+#### SignalWire-specific parameters
 
 | Parameter       | Description |
 | --------------- | ------------|
@@ -186,7 +186,7 @@ auth_token      YoruAuthToken
 http_password   EDIVMA8HLvrZOV5N
 ```
 
-### SignalWire webhook configuration
+#### SignalWire webhook configuration
 
 You must configure your SignalWire account to invoke a webhook when you
 receive an incoming SMS.  The URL of the webhook follows this template:
@@ -204,7 +204,7 @@ Example webhook URL: `http://signalwire:EDIVMA8HLvrZOV5N@example.com:8080/person
 Note: if you have placed sms-over-xmpp behind a reverse proxy, be sure to adjust
 the URL accordingly.
 
-### Nexmo-specific parameters
+#### Nexmo-specific parameters
 
 | Parameter       | Description |
 | --------------- | ------------|
@@ -221,7 +221,7 @@ api_secret      abcdef0123456789
 http_password   5VKFT8pByMkO6IG6
 ```
 
-### Nexmo webhook configuration
+#### Nexmo webhook configuration
 
 You must configure your Nexmo account to invoke a webhook when you
 receive an incoming SMS.  The URL of the webhook follows this template:
