@@ -15,7 +15,8 @@ addresses.
 Examples:
 * `-listen tcp:8080` to listen on TCP port 8080, all interfaces.
 * `-listen tcp:192.0.2.4:8080` to listen on TCP port 8080 on 192.0.2.4.
-* `-listen tls:sms.example.com:tcp:443` to listen on TCP port 443 with an automatically-obtained HTTPS certificate for `sms.example.com`
+* `-listen tls:sms.example.com:tcp:443` to listen on TCP port 443 with an automatically-obtained HTTPS certificate for `sms.example.com`.
+* `-listen tls:/path/to/certificate.pem:tcp:8443` to listen on TCP port 8443 with an HTTPS certificate from the given file (which must be a single PEM file containing the private key, the certificate, and the intermediate certificate).
 
 ### `-config PATH` (Mandatory)
 

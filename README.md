@@ -49,15 +49,21 @@ that as of April 22, 2022, the version of `mod_remote_roster` that ships
 with `prosody-modules` has a bug.  A patch has been submitted upstream;
 in the meantime, use [this version](contrib/mod_remote_roster.lua).
 
-## Documentation
+## Installing
 
-* [Config Reference](doc/configuration.md)
-
-## Installation
+If you have the latest version of Go installed, you can run:
 
 ```
 go install src.agwa.name/sms-over-xmpp/cmd/sms-over-xmpp@latest
 ```
+
+Or, you can download a binary from the [GitHub Releases Page](https://github.com/AGWA/sms-over-xmpp/releases).
+
+sms-over-xmpp is a single statically-linked binary so using Docker or a similar technology is superfluous.
+
+## Configuring
+
+See the [Config Reference](doc/configuration.md).
 
 ## Tested Configurations
 
