@@ -5,6 +5,7 @@ import (
 	"github.com/emersion/go-webdav/carddav"
 	"github.com/emersion/go-vcard"
 	"src.agwa.name/go-xmpp"
+	"strings"
 
 	"log"
 )
@@ -84,6 +85,7 @@ func getVcardCellNumber(card vcard.Card) string {
 }
 
 func cleanupVcardPhoneNumber(num string) string {
+	num = strings.TrimPrefix(num, "011")
 	ret := "+"
 	for _, c := range num {
 		if c >= '0' && c <= '9' {
