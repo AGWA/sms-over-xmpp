@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/emersion/go-vcard v0.0.0-20210521075357-3445b9171995
 	github.com/emersion/go-webdav v0.3.1
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
 	src.agwa.name/go-listener v0.2.0
 	src.agwa.name/go-xmpp v0.1.0
 )

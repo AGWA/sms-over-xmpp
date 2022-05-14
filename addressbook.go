@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/emersion/go-webdav/carddav"
 	"github.com/emersion/go-vcard"
+	"golang.org/x/sync/errgroup"
 	"src.agwa.name/go-xmpp"
 	"strings"
 
@@ -48,15 +49,23 @@ func (addrbook *addressBook) download(ctx context.Context, client *carddav.Clien
 }
 
 func (addrbook *addressBook) downloadObjects(ctx context.Context, client *carddav.Client, objects []carddav.AddressObject) error {
-	// TODO: download objects in parallel
+	group, ctx := errgroup.WithContext(ctx)
+	group.SetLimit(10)
 	for i := range objects {
-		object, err := client.GetAddressObject(objects[i].Path)
-		if err != nil {
-			return err
-		}
-		objects[i] = *object
+		i := i
+		group.Go(func() error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			object, err := client.GetAddressObject(objects[i].Path)
+			if err != nil {
+				return err
+			}
+			objects[i] = *object
+			return nil
+		})
 	}
-	return nil
+	return group.Wait()
 }
 
 func (addrbook *addressBook) makeRoster(domain string) Roster {
