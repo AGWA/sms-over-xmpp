@@ -29,7 +29,6 @@ package httputil
 
 import (
 	"crypto/subtle"
-	"fmt"
 	"net/http"
 )
 
@@ -42,8 +41,7 @@ func IsHTTPAuthed(req *http.Request, correctPassword string) bool {
 func RequireHTTPAuth(w http.ResponseWriter, req *http.Request, correctPassword string) bool {
 	if !IsHTTPAuthed(req, correctPassword) {
 		w.Header().Set("WWW-Authenticate", "Basic realm=\"sms-over-xmpp\"")
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintln(w, "401 Unauthorized: please provide correct password")
+		http.Error(w, "401 Unauthorized: please provide correct username and password", http.StatusUnauthorized)
 		return false
 	}
 	return true
