@@ -102,7 +102,8 @@ book at the given URL to the XMPP user's roster.
 
 The XMPP server must support
 [XEP-0321](https://xmpp.org/extensions/xep-0321.html).  For Prosody,
-you can use [mod_remote_roster](../contrib/mod_remote_roster.lua).
+you can use [mod_remote_roster](https://modules.prosody.im/mod_remote_roster.html).  (Make
+sure you use a version which incorporates [this commit](https://hg.prosody.im/prosody-modules/rev/ad6e9b0fd15b).)
 
 Example `rosters` map:
 

@@ -44,10 +44,8 @@ propagated to your address book, and may be reverted.
 
 Your XMPP server must support
 [XEP-0321](https://xmpp.org/extensions/xep-0321.html).  For Prosody,
-you can use [mod_remote_roster](contrib/mod_remote_roster.lua).  Note
-that as of April 22, 2022, the version of `mod_remote_roster` that ships
-with `prosody-modules` has a bug.  A patch has been submitted upstream;
-in the meantime, use [this version](contrib/mod_remote_roster.lua).
+you can use [mod_remote_roster](https://modules.prosody.im/mod_remote_roster.html).  (Make
+sure you use a version which incorporates [this commit](https://hg.prosody.im/prosody-modules/rev/ad6e9b0fd15b).)
 
 ## Installing
 
@@ -75,4 +73,4 @@ sms-over-xmpp has been tested with the following configuration:
 * [Monal](https://monal.im/) for the mobile (iOS) XMPP client
 * [Radicale](https://radicale.org/) for the CardDAV server (needed for address book synchronization)
 * [mod_http_upload_s3](https://github.com/abeluck/mod_http_upload_s3) for HTTP file upload in Prosody (needed for sending MMS)
-* [mod_remote_roster.lua](contrib/mod_remote_roster.lua) for remote roster management in Prosody (needed for address book synchronization)
+* [mod_remote_roster](https://modules.prosody.im/mod_remote_roster.html) for remote roster management in Prosody (needed for address book synchronization)
