@@ -58,8 +58,11 @@ type voipmsApiResponse struct {
 func (p *Provider) receiveSms(w http.ResponseWriter, r *http.Request) {
 	// Will receive: to, from, date, id, message
 	id := r.FormValue("id")
+
+	// TODO: How to handle other countries?
 	from := "+1" + r.FormValue("from")
 	to := "+1" + r.FormValue("to")
+
 	date := r.FormValue("date")
 	message := r.FormValue("message")
 
@@ -123,9 +126,9 @@ func (p *Provider) Send(msg *smsxmpp.Message) error {
 	q.Set("api_username", p.apiUsername)
 	q.Set("api_password", p.apiPassword)
 
+	// TODO: How to handle other countries?
 	did := strings.TrimPrefix(msg.From, "+1")
 	q.Set("did", did)
-
 	dst := strings.TrimPrefix(msg.To, "+1")
 	q.Set("dst", dst)
 
