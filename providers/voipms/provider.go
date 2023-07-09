@@ -124,9 +124,13 @@ func (p *Provider) sendSms(msg *smsxmpp.Message) error {
 	v := url.Values{}
 	v.Set("api_username", p.apiUsername)
 	v.Set("api_password", p.apiPassword)
-	v.Set("did", msg.From)
+
+	did := strings.TrimPrefix(msg.From, "+1")
+	v.Set("did", did)
+
 	dst := strings.TrimPrefix(msg.To, "+1")
 	v.Set("dst", dst)
+
 	v.Set("message", msg.Body)
 
 	method := "sendSMS"
@@ -140,7 +144,7 @@ func (p *Provider) sendSms(msg *smsxmpp.Message) error {
 	}
 	v.Set("method", method)
 
-	log.Printf("sendSms: method=%s, to=%s, from=%s", method, dst, msg.From)
+	log.Printf("sendSms: method=%s, to=%s, from=%s", method, dst, did)
 
 	resp, err := http.PostForm(voipmsApiURL, v)
 	if err != nil {
