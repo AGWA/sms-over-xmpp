@@ -1,6 +1,7 @@
 package voipms
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -25,10 +26,6 @@ type Provider struct {
 
 func (provider *Provider) Type() string {
 	return "voipms"
-}
-
-func (provider *Provider) Send(message *smsxmpp.Message) error {
-	return nil
 }
 
 func (p *Provider) HTTPHandler() http.Handler {
@@ -93,7 +90,7 @@ func (p *Provider) receiveSms(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *Provider) sendSms(msg *smsxmpp.Message) error {
+func (p *Provider) Send(msg *smsxmpp.Message) error {
 	// GET query parameters:
 	// did     => [Required] DID Numbers which is sending the message (Example: 5551234567)
 	// dst     => [Required] Destination Number (Example: 5551234568)
@@ -121,41 +118,53 @@ func (p *Provider) sendSms(msg *smsxmpp.Message) error {
 	//     [mms] => 23434
 	// )
 
-	v := url.Values{}
-	v.Set("api_username", p.apiUsername)
-	v.Set("api_password", p.apiPassword)
+	u, err := url.Parse(voipmsApiURL)
+	q := u.Query()
+	q.Set("api_username", p.apiUsername)
+	q.Set("api_password", p.apiPassword)
 
 	did := strings.TrimPrefix(msg.From, "+1")
-	v.Set("did", did)
+	q.Set("did", did)
 
 	dst := strings.TrimPrefix(msg.To, "+1")
-	v.Set("dst", dst)
+	q.Set("dst", dst)
 
-	v.Set("message", msg.Body)
+	q.Set("message", msg.Body)
 
 	method := "sendSMS"
 	for i, media := range msg.MediaURLs {
 		if i == 3 {
-			log.Printf("sendSms: exceeded maximum of 3 media files, ignoring remaining media URLs")
+			log.Printf("Send: exceeded maximum of 3 media files, ignoring remaining media URLs")
 			break
 		}
-		v.Set(fmt.Sprintf("media%d", i+1), media)
+		q.Set(fmt.Sprintf("media%d", i+1), media)
 		method = "sendMMS"
 	}
-	v.Set("method", method)
+	q.Set("method", method)
+
+	u.RawQuery = q.Encode()
 
 	log.Printf("sendSms: method=%s, to=%s, from=%s", method, dst, did)
 
-	resp, err := http.PostForm(voipmsApiURL, v)
+	resp, err := http.Get(u.String())
 	if err != nil {
-		return fmt.Errorf("sendSMS: http.PostForm: %w", err)
+		return fmt.Errorf("Send: http.Get: %w", err)
 	}
 	defer resp.Body.Close()
 
-	var apiResp voipmsApiResponse
-	err = json.NewDecoder(resp.Body).Decode(&apiResp)
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(resp.Body)
 	if err != nil {
-		return fmt.Errorf("sendSms: parse error in voip.ms response: %w", err)
+		log.Printf("Send: failed to read response body: %v", err)
+		return fmt.Errorf("Send: failed to read response body: %w", err)
+	}
+	body := buf.Bytes()
+
+	var apiResp voipmsApiResponse
+	err = json.Unmarshal(body, &apiResp)
+	if err != nil {
+		log.Printf("Send: parse error in voip.ms response: %v [JSON body: %s]", err, body)
+		return fmt.Errorf("Send: parse error in voip.ms response: %w", err)
 	}
 
 	// was the message queued for delivery?
@@ -166,9 +175,9 @@ func (p *Provider) sendSms(msg *smsxmpp.Message) error {
 			Body: fmt.Sprintf("ERROR: %s error: %s", method, apiResp.Status),
 		}
 		if err := p.service.Receive(&msg); err != nil {
-			log.Printf("sendSms: failed to send error message: %v", err)
+			log.Printf("Send: failed to send error message: %v", err)
 		}
-		return fmt.Errorf("sendSms: unexpected status from voip.ms API: %s", apiResp.Status)
+		return fmt.Errorf("Send: unexpected status from voip.ms API: %s", apiResp.Status)
 	}
 	return nil
 }

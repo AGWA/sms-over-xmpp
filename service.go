@@ -400,7 +400,7 @@ func (service *Service) receiveXMPPIq(ctx context.Context, iq *xmpp.Iq) error {
 			{
 				Category: "gateway",
 				Type:     "sms",
-				Name:     "SMS over XMPP",
+				Name:     "SMS " + iq.To.LocalPart,
 			},
 		}
 		features := []xmpp.DiscoFeature{
