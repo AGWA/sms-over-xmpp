@@ -383,12 +383,48 @@ func (service *Service) receiveXMPPPresence(ctx context.Context, presence *xmpp.
 	return nil
 }
 
+type DiscoInfoReply struct {
+	xmpp.Header
+
+	Type      string               `xml:"type,attr"`
+	XMLName   string               `xml:"iq"`
+	DiscoInfo *xmpp.DiscoInfoQuery `xml:"http://jabber.org/protocol/disco#info query,omitempty"`
+}
+
 func (service *Service) receiveXMPPIq(ctx context.Context, iq *xmpp.Iq) error {
 	switch {
 	case iq.RosterQuery != nil:
 		return service.receiveXMPPRosterQuery(ctx, iq)
 	case iq.IsDiscoInfo():
-		return errors.New("Disco info not supported")
+		ids := []xmpp.DiscoIdentity{
+			{
+				Category: "gateway",
+				Type:     "sms",
+				Name:     "SMS over XMPP",
+			},
+		}
+		features := []xmpp.DiscoFeature{
+			{Var: "urn:xmpp:receipts"},
+			{Var: "vcard-temp"},
+			{Var: "http://jabber.org/protocol/disco#info"},
+		}
+		stanza := &DiscoInfoReply{
+			Header: xmpp.Header{
+				From: iq.To,
+				To:   iq.From,
+				ID:   iq.ID,
+			},
+			Type: "result",
+			DiscoInfo: &xmpp.DiscoInfoQuery{
+				Identities: ids,
+				Features:   features,
+			},
+			XMLName: iq.XMLName,
+		}
+		if !service.sendWithin(5*time.Second, stanza) {
+			return errors.New("Timed out when sending XMPP Disco Info result")
+		}
+		return nil
 	default:
 		return nil
 	}
