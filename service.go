@@ -252,7 +252,10 @@ func (service *Service) Receive(message *Message) error {
 	if !known {
 		return errors.New("Unknown phone number " + message.To)
 	}
-	from := xmpp.Address{service.friendlyPhoneNumber(message.From), service.xmppParams.Domain, ""}
+	from := xmpp.Address{
+		LocalPart:  service.friendlyPhoneNumber(message.From),
+		DomainPart: service.xmppParams.Domain,
+	}
 
 	if err := service.sendXMPPChat(from, address, message.Body); err != nil {
 		return err
