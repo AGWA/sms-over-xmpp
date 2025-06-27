@@ -32,7 +32,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"io/ioutil"
+	"io"
 	"strings"
 )
 
@@ -58,7 +58,7 @@ func (provider *Provider) doTwilioRequest(service string, form url.Values) (*api
 		return nil, err
 	}
 
-	respBytes, err := ioutil.ReadAll(httpResp.Body)
+	respBytes, err := io.ReadAll(httpResp.Body)
 	httpResp.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("Error reading response from Twilio: %s", err)

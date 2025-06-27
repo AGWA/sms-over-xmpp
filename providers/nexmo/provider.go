@@ -33,7 +33,7 @@ import (
 	"net/url"
 	"strings"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"encoding/json"
 
 	"src.agwa.name/sms-over-xmpp"
@@ -94,7 +94,7 @@ func (provider *Provider) HTTPHandler() http.Handler {
 func (provider *Provider) handleInboundSMS(w http.ResponseWriter, req *http.Request) {
 	// https://developer.nexmo.com/api/sms#inbound-sms
 
-	requestBytes, err := ioutil.ReadAll(req.Body)
+	requestBytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(w, "400 Bad Request: unable to read request body", 400)
 		return

@@ -34,7 +34,6 @@ import (
 	"os"
 	"path/filepath"
 	"io/fs"
-	"io/ioutil"
 	"strings"
 )
 
@@ -99,7 +98,7 @@ func loadProviderConfigFile(filename string) (ProviderConfig, error) {
 }
 
 func loadProvidersDirectory(dirpath string) (map[string]ProviderConfig, error) {
-	providerFiles, err := ioutil.ReadDir(dirpath)
+	providerFiles, err := os.ReadDir(dirpath)
 	if err != nil {
 		return nil, err
 	}
