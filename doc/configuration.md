@@ -252,7 +252,7 @@ the URL accordingly.
 Example config file for a VoIP.ms-type provider:
 
 ```
-type            voip.ms
+type            voipms
 api_username    abcd1234
 api_password    abcdef0123456789
 http_password   5VKFT8pByMkO6IG6
