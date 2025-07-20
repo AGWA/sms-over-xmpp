@@ -28,11 +28,12 @@
 package twilio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
-	"io"
 	"strings"
 )
 
@@ -44,9 +45,9 @@ type apiResponse struct {
 	Flags []string `json:"flags"`
 }
 
-func (provider *Provider) doTwilioRequest(service string, form url.Values) (*apiResponse, error) {
+func (provider *Provider) doTwilioRequest(ctx context.Context, service string, form url.Values) (*apiResponse, error) {
 	url := provider.apiURL + "/2010-04-01/Accounts/" + provider.accountSID + "/" + service + ".json"
-	req, err := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST", url, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
 	}

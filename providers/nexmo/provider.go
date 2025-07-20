@@ -28,20 +28,21 @@
 package nexmo
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
-	"fmt"
-	"io"
-	"encoding/json"
 
 	"src.agwa.name/sms-over-xmpp"
 	"src.agwa.name/sms-over-xmpp/httputil"
 )
 
 type Provider struct {
-	service      *smsxmpp.Service
+	service *smsxmpp.Service
 
 	apiKey       string
 	apiSecret    string
@@ -52,7 +53,7 @@ func (provider *Provider) Type() string {
 	return "nexmo"
 }
 
-func (provider *Provider) Send(message *smsxmpp.Message) error {
+func (provider *Provider) Send(ctx context.Context, message *smsxmpp.Message) error {
 	// https://developer.nexmo.com/api/sms#send-an-sms
 	request := make(url.Values)
 	request.Set("api_key", provider.apiKey)
@@ -69,7 +70,7 @@ func (provider *Provider) Send(message *smsxmpp.Message) error {
 		return errors.New("Nexmo doesn't support media")
 	}
 
-	response, err := provider.sendSMS(request)
+	response, err := provider.sendSMS(ctx, request)
 	if err != nil {
 		return err
 	}
@@ -108,7 +109,7 @@ func (provider *Provider) handleInboundSMS(w http.ResponseWriter, req *http.Requ
 
 	message := smsxmpp.Message{
 		From: "+" + inboundSMS.Msisdn,
-		To: "+" + inboundSMS.To,
+		To:   "+" + inboundSMS.To,
 		Body: inboundSMS.Text,
 	}
 	if err := provider.service.Receive(&message); err != nil {
@@ -121,9 +122,9 @@ func (provider *Provider) handleInboundSMS(w http.ResponseWriter, req *http.Requ
 
 func MakeProvider(service *smsxmpp.Service, config smsxmpp.ProviderConfig) (smsxmpp.Provider, error) {
 	return &Provider{
-		service: service,
-		apiKey: config["api_key"],
-		apiSecret: config["api_secret"],
+		service:      service,
+		apiKey:       config["api_key"],
+		apiSecret:    config["api_secret"],
 		httpPassword: config["http_password"],
 	}, nil
 }

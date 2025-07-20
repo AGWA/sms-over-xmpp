@@ -28,11 +28,12 @@
 package nexmo
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
-	"io"
 	"strings"
 )
 
@@ -51,8 +52,8 @@ type sendSMSResponse struct {
 	} `json:"messages"`
 }
 
-func (provider *Provider) sendSMS(form url.Values) (*sendSMSResponse, error) {
-	req, err := http.NewRequest("POST", "https://rest.nexmo.com/sms/json", strings.NewReader(form.Encode()))
+func (provider *Provider) sendSMS(ctx context.Context, form url.Values) (*sendSMSResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://rest.nexmo.com/sms/json", strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -82,16 +83,16 @@ func (provider *Provider) sendSMS(form url.Values) (*sendSMSResponse, error) {
 }
 
 var sendSMSStatuses = map[string]string{
-	"0": "Success",
-	"1": "Throttled",
-	"2": "Missing Parameters",
-	"3": "Invalid Parameters",
-	"4": "Invalid Credentials",
-	"5": "Internal Error",
-	"6": "Invalid Message",
-	"7": "Number Barred",
-	"8": "Partner Account Barred",
-	"9": "Partner Quota Violation",
+	"0":  "Success",
+	"1":  "Throttled",
+	"2":  "Missing Parameters",
+	"3":  "Invalid Parameters",
+	"4":  "Invalid Credentials",
+	"5":  "Internal Error",
+	"6":  "Invalid Message",
+	"7":  "Number Barred",
+	"8":  "Partner Account Barred",
+	"9":  "Partner Quota Violation",
 	"10": "Too Many Existing Binds",
 	"11": "Account Not Enabled For HTTP",
 	"12": "Message Too Long",

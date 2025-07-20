@@ -31,9 +31,9 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"io/fs"
 	"strings"
 )
 
@@ -73,7 +73,7 @@ func loadUsersFile(filename string) (map[string]UserConfig, error) {
 			return nil, fmt.Errorf("User %s in %s has malformed configuration (should look like provider:phonenumber)", userJID, filename)
 		}
 		users[userJID] = UserConfig{
-			Provider: fields[0],
+			Provider:    fields[0],
 			PhoneNumber: fields[1],
 		}
 	}
@@ -92,7 +92,7 @@ func loadProviderConfigFile(filename string) (ProviderConfig, error) {
 	}
 	delete(params, "type")
 	return ProviderConfig{
-		Type: typeParam,
+		Type:   typeParam,
 		Params: params,
 	}, nil
 }

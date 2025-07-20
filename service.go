@@ -31,19 +31,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
-	"log"
 	"strings"
 	"sync"
 	"time"
 
-	"golang.org/x/sync/errgroup"
 	"github.com/emersion/go-webdav/carddav"
+	"golang.org/x/sync/errgroup"
 
-	"src.agwa.name/sms-over-xmpp/config"
-	"src.agwa.name/go-xmpp/component"
 	"src.agwa.name/go-xmpp"
+	"src.agwa.name/go-xmpp/component"
+	"src.agwa.name/sms-over-xmpp/config"
 )
 
 type RosterItem struct {
@@ -70,7 +70,7 @@ type Roster map[xmpp.Address]RosterItem
 
 var ErrRosterNotIntialized = errors.New("the roster for this user has not been initialized yet")
 
-const rosterSyncInterval = 15*time.Second
+const rosterSyncInterval = 15 * time.Second
 
 type rosterUser struct {
 	carddavURL string
@@ -93,13 +93,13 @@ type user struct {
 }
 
 type Service struct {
-	defaultPrefix   string // prepended to phone numbers that don't start with +
-	publicURL       string
-	users           map[xmpp.Address]user // Map from bare JID -> user
-	rosterUsers     map[xmpp.Address]*rosterUser // Map from bare JID -> *rosterUser
-	providers       map[string]Provider
-	xmppParams      component.Params
-	xmppSendChan    chan interface{}
+	defaultPrefix string // prepended to phone numbers that don't start with +
+	publicURL     string
+	users         map[xmpp.Address]user        // Map from bare JID -> user
+	rosterUsers   map[xmpp.Address]*rosterUser // Map from bare JID -> *rosterUser
+	providers     map[string]Provider
+	xmppParams    component.Params
+	xmppSendChan  chan interface{}
 }
 
 func NewService(config *config.Config) (*Service, error) {
@@ -110,15 +110,15 @@ func NewService(config *config.Config) (*Service, error) {
 	}
 	service := &Service{
 		defaultPrefix: config.DefaultPrefix,
-		publicURL:   config.PublicURL,
-		users:       make(map[xmpp.Address]user),
-		rosterUsers: make(map[xmpp.Address]*rosterUser),
-		providers:   make(map[string]Provider),
-		xmppParams:  component.Params{
+		publicURL:     config.PublicURL,
+		users:         make(map[xmpp.Address]user),
+		rosterUsers:   make(map[xmpp.Address]*rosterUser),
+		providers:     make(map[string]Provider),
+		xmppParams: component.Params{
 			Domain: config.XMPPDomain,
 			Secret: config.XMPPSecret,
 			Server: config.XMPPServer,
-			Logger: log.New(os.Stderr, "", log.Ldate | log.Ltime | log.Lmicroseconds),
+			Logger: log.New(os.Stderr, "", log.Ldate|log.Ltime|log.Lmicroseconds),
 		},
 		xmppSendChan: make(chan interface{}),
 	}
@@ -142,7 +142,7 @@ func NewService(config *config.Config) (*Service, error) {
 		}
 		service.users[userAddress] = user{
 			phoneNumber: userConfig.PhoneNumber,
-			provider: userProvider,
+			provider:    userProvider,
 		}
 	}
 
@@ -184,7 +184,7 @@ func (service *Service) HTTPHandler() http.Handler {
 	mux := http.NewServeMux()
 	for name, provider := range service.providers {
 		if providerHandler := provider.HTTPHandler(); providerHandler != nil {
-			mux.Handle("/" + name + "/", http.StripPrefix("/" + name, providerHandler))
+			mux.Handle("/"+name+"/", http.StripPrefix("/"+name, providerHandler))
 		}
 	}
 	mux.HandleFunc("/", service.defaultHTTPHandler)
@@ -193,9 +193,9 @@ func (service *Service) HTTPHandler() http.Handler {
 
 func (service *Service) RunXMPPComponent(ctx context.Context) error {
 	callbacks := component.Callbacks{
-		Message: service.receiveXMPPMessage,
+		Message:  service.receiveXMPPMessage,
 		Presence: service.receiveXMPPPresence,
-		Iq: service.receiveXMPPIq,
+		Iq:       service.receiveXMPPIq,
 	}
 
 	return component.Run(ctx, service.xmppParams, callbacks, service.xmppSendChan)
@@ -292,8 +292,8 @@ func (service *Service) sendXMPPMediaURL(from xmpp.Address, to xmpp.Address, med
 			From: &from,
 			To:   &to,
 		},
-		Body: mediaURL,
-		Type: xmpp.CHAT,
+		Body:          mediaURL,
+		Type:          xmpp.CHAT,
 		OutOfBandData: &xmpp.OutOfBandData{URL: mediaURL},
 	}
 
@@ -325,7 +325,7 @@ func (service *Service) receiveXMPPMessage(ctx context.Context, xmppMessage *xmp
 	}
 	user, userExists := service.users[*xmppMessage.From.Bare()]
 	if !userExists {
-		return service.sendXMPPError(xmppMessage.To, xmppMessage.From, xmppMessage.From.Bare().String() + " is not a known user; please add them to sms-over-xmpp's users file")
+		return service.sendXMPPError(xmppMessage.To, xmppMessage.From, xmppMessage.From.Bare().String()+" is not a known user; please add them to sms-over-xmpp's users file")
 	}
 
 	toPhoneNumber, err := service.canonPhoneNumber(xmppMessage.To.LocalPart)
@@ -344,10 +344,12 @@ func (service *Service) receiveXMPPMessage(ctx context.Context, xmppMessage *xmp
 	}
 
 	go func() {
-		err := user.provider.Send(message)
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		err := user.provider.Send(ctx, message)
 		if err != nil {
 			// TODO: if sendXMPPError fails, log the error
-			service.sendXMPPError(xmppMessage.To, xmppMessage.From, "Sending SMS failed: " + err.Error())
+			service.sendXMPPError(xmppMessage.To, xmppMessage.From, "Sending SMS failed: "+err.Error())
 		}
 	}()
 
@@ -522,7 +524,7 @@ func (service *Service) sendXMPPRosterQuery(id string, to xmpp.Address, iqType s
 			ID: id,
 			To: &to,
 		},
-		Type: iqType,
+		Type:        iqType,
 		RosterQuery: &query,
 	}
 	if !service.sendWithin(5*time.Second, iq) {
@@ -552,7 +554,7 @@ func (service *Service) sendXMPPPresence(from *xmpp.Address, to *xmpp.Address, p
 			From: from,
 			To:   to,
 		},
-		Type: presenceType,
+		Type:   presenceType,
 		Status: status,
 	}
 	if !service.sendWithin(5*time.Second, xmppPresence) {
