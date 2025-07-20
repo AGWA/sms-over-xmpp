@@ -34,6 +34,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"io"
+	"encoding/json"
 
 	"src.agwa.name/sms-over-xmpp"
 	"src.agwa.name/sms-over-xmpp/httputil"
@@ -93,21 +95,40 @@ func (provider *Provider) HTTPHandler() http.Handler {
 }
 
 func (provider *Provider) handleSMS(w http.ResponseWriter, req *http.Request) {
-	if err := req.ParseForm(); err != nil {
-		http.Error(w, "400 Bad Request: Parsing form failed: "+err.Error(), 400)
+	requestBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(w, "400 Bad Request: unable to read request body", 400)
 		return
 	}
-
-	log.Printf("received voip.ms SMS with query string %q", req.URL.RawQuery)
-
-	message := smsxmpp.Message{
-		From: "+1" + req.Form.Get("from"),
-		To:   "+1" + req.Form.Get("to"),
-		Body: req.Form.Get("message"),
+	log.Printf("received voip.ms webhook with POST body %q", string(requestBytes))
+	var requestDoc struct {
+		Data struct {
+			Payload struct {
+				From struct {
+					PhoneNumber string `json:"phone_number"`
+				} `json:"from"`
+				To struct {
+					PhoneNumber string `json:"phone_number"`
+				} `json:"to"`
+				Text string `json:"text"`
+				Media []struct{
+					URL string `json:"url"`
+				} `json:"media"`
+			} `json:"payload"`
+		} `json:"data"`
 	}
-
-	// TODO: MMS?
-
+	if err := json.Unmarshal(requestBytes, &requestDoc); err != nil {
+		http.Error(w, "400 Bad Request: malformed JSON", 400)
+		return
+	}
+	message := smsxmpp.Message{
+		From: "+1" + requestDoc.Data.Payload.From.PhoneNumber,
+		To:   "+1" + requestDoc.Data.Payload.To.PhoneNumber,
+		Body: requestDoc.Data.Payload.Text,
+	}
+	for _, media := range requestDoc.Data.Payload.Media {
+		message.MediaURLs = append(message.MediaURLs, media.URL)
+	}
 	if err := provider.service.Receive(&message); err != nil {
 		// TODO: log the error
 		http.Error(w, "500 Internal Server Error: failed to receive message", 500)
