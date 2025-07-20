@@ -100,14 +100,14 @@ func (provider *Provider) handleSMS(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "400 Bad Request: unable to read request body", 400)
 		return
 	}
-	log.Printf("received voip.ms webhook with POST body %q", string(requestBytes))
+	log.Printf("voipms: received webhook with POST body %q", string(requestBytes))
 	var requestDoc struct {
 		Data struct {
 			Payload struct {
 				From struct {
 					PhoneNumber string `json:"phone_number"`
 				} `json:"from"`
-				To struct {
+				To []struct {
 					PhoneNumber string `json:"phone_number"`
 				} `json:"to"`
 				Text string `json:"text"`
@@ -118,19 +118,26 @@ func (provider *Provider) handleSMS(w http.ResponseWriter, req *http.Request) {
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(requestBytes, &requestDoc); err != nil {
+		log.Printf("voipms: ignoring inbound webhook due to malformed JSON: %s", err)
 		http.Error(w, "400 Bad Request: malformed JSON", 400)
 		return
 	}
-	message := smsxmpp.Message{
-		From: "+1" + requestDoc.Data.Payload.From.PhoneNumber,
-		To:   "+1" + requestDoc.Data.Payload.To.PhoneNumber,
-		Body: requestDoc.Data.Payload.Text,
+	payload := &requestDoc.Data.Payload
+	if len(payload.To) != 1 {
+		log.Printf("voipms: ignoring inbound webhook because it has %d destination phone numbers nstead of 1", len(payload.To))
+		http.Error(w, "400 Bad Request: number of destination phone numbers is not 1", 400)
+		return
 	}
-	for _, media := range requestDoc.Data.Payload.Media {
+	message := smsxmpp.Message{
+		From: "+1" + payload.From.PhoneNumber,
+		To:   "+1" + payload.To[0].PhoneNumber,
+		Body: payload.Text,
+	}
+	for _, media := range payload.Media {
 		message.MediaURLs = append(message.MediaURLs, media.URL)
 	}
 	if err := provider.service.Receive(&message); err != nil {
-		// TODO: log the error
+		log.Printf("voipms: unable to process inbound SMS from %s to %s: %s", message.From, message.To, err)
 		http.Error(w, "500 Internal Server Error: failed to receive message", 500)
 		return
 	}
