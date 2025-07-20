@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Andrew Ayer
+ * Copyright (c) 2022 Andrew Ayer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,74 +25,51 @@
  * authorization.
  */
 
-package main
+package voipms
 
 import (
-	"context"
-	"flag"
-	"net"
-	"net/http"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log"
-
-	"src.agwa.name/go-listener"
-	_ "src.agwa.name/go-listener/tls"
-	"src.agwa.name/sms-over-xmpp"
-	"src.agwa.name/sms-over-xmpp/config"
-	_ "src.agwa.name/sms-over-xmpp/providers/twilio"
-	_ "src.agwa.name/sms-over-xmpp/providers/nexmo"
-	_ "src.agwa.name/sms-over-xmpp/providers/voipms"
+	"net/http"
+	"net/url"
+	"strings"
 )
 
-func main() {
-	var flags struct {
-		config string
-		listen []string
-	}
-	flag.StringVar(&flags.config, "config", "", "Path to config directory")
-	flag.Func("listen", "Socket to listen on (repeatable)", func(arg string) error {
-		flags.listen = append(flags.listen, arg)
-		return nil
-	})
-	flag.Parse()
+type apiResponse struct {
+	Status string `json:"status"`
+}
 
-	if flags.config == "" {
-		log.Fatal("-config flag not specified")
-	}
-	if len(flags.listen) == 0 {
-		log.Fatal("-listen flag not specified")
-	}
+func doRequest(form url.Values) (*apiResponse, error) {
+	// POST to https://voip.ms/api/v1/rest.php
+	// output will contain {"status":"success"} if successful
 
-	config, err := config.FromDirectory(flags.config)
+	req, err := http.NewRequest("POST", "https://voip.ms/api/v1/rest.php", strings.NewReader(form.Encode()))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	listeners, err := listener.OpenAll(flags.listen)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	defer listener.CloseAll(listeners)
-
-	service, err := smsxmpp.NewService(config)
+	respBytes, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("error reading response from voip.ms: %w", err)
 	}
 
-	httpServer := http.Server{
-		Handler: service.HTTPHandler(),
+	log.Printf("received from voip.ms %q", string(respBytes))
+
+	if contentType := resp.Header.Get("Content-Type"); contentType != "application/json" {
+		return nil, fmt.Errorf("received non-JSON response %v from voip.ms", contentType)
 	}
 
-	for _, l := range listeners {
-		go func(l net.Listener) {
-			log.Fatal(httpServer.Serve(l))
-		}(l)
+	apiResp := new(apiResponse)
+	if err := json.Unmarshal(respBytes, apiResp); err != nil {
+		return nil, err
 	}
-
-	go func() {
-		if err := service.RunAddressBookUpdater(context.Background()); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	log.Fatal(service.RunXMPPComponent(context.Background()))
+	return apiResp, nil
 }

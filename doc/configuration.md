@@ -126,9 +126,9 @@ type of provider.
 
 #### Common parameters
 
-| Parameter     | Description                                                 |
-| ------------- | ----------------------------------------------------------- |
-| `type`        | The type of provider: `twilio`, `signalwire`, or `nexmo`.   |
+| Parameter | Description |
+| ----------| ------------|
+| `type`    | The type of provider: `twilio`, `signalwire`, `nexmo`, or `voipms`. |
 
 #### Twilio-specific parameters
 
@@ -237,6 +237,41 @@ Replace:
 * `PROVIDER_NAME` with the name of the provider.
 
 Example webhook URL: `http://nexmo:5VKFT8pByMkO6IG6@example.com:8080/work/inbound-sms`
+
+Note: if you have placed sms-over-xmpp behind a reverse proxy, be sure to adjust
+the URL accordingly.
+
+#### VoIP.ms-specific parameters
+
+| Parameter       | Description |
+| --------------- | ------------|
+| `api_username`  | Your VoIP.ms API username, provided by VoIP.ms |
+| `api_password`  | Your VoIP.ms API password, provided by VoIP.ms |
+| `http_password` | A password, chosen by you, that VoIP.ms must use when executing the webhook for incoming SMSes |
+
+Example config file for a VoIP.ms-type provider:
+
+```
+type            voip.ms
+api_username    abcd1234
+api_password    abcdef0123456789
+http_password   5VKFT8pByMkO6IG6
+```
+
+#### VoIP.ms webhook configuration
+
+You must configure your VOIP.ms account to invoke a webhook when you
+receive an incoming SMS.  The URL of the webhook follows this template:
+
+`http://voipms:HTTP_PASSWORD@HOSTNAME:PORT/PROVIDER_NAME/sms`
+
+Replace:
+
+* `HTTP_PASSWORD` with the password specified to the `http_password` parameter.
+* `HOSTNAME:PORT` with the public hostname and port number of your sms-over-xmpp server.
+* `PROVIDER_NAME` with the name of the provider.
+
+Example webhook URL: `http://voip.ms:5VKFT8pByMkO6IG6@example.com:8080/work/sms`
 
 Note: if you have placed sms-over-xmpp behind a reverse proxy, be sure to adjust
 the URL accordingly.
