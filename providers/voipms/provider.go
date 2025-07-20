@@ -28,6 +28,7 @@
 package voipms
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -53,7 +54,7 @@ func (provider *Provider) Type() string {
 	return "voipms"
 }
 
-func (provider *Provider) Send(message *smsxmpp.Message) error {
+func (provider *Provider) Send(ctx context.Context, message *smsxmpp.Message) error {
 	from, ok := strings.CutPrefix(message.From, "+1")
 	if !ok {
 		return fmt.Errorf("voip.ms cannot send SMS from %q - only phone numbers with +1 country code are supported", message.From)
@@ -88,7 +89,7 @@ func (provider *Provider) Send(message *smsxmpp.Message) error {
 		return errors.New("Message too long (voip.ms messages must be <= 2048 bytes long and have <= 3 attachments)")
 	}
 
-	if resp, err := doRequest(request); err != nil {
+	if resp, err := doRequest(ctx, request); err != nil {
 		return err
 	} else if resp.Status != "success" {
 		return fmt.Errorf("sending SMS failed with status %q", resp.Status)

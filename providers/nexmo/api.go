@@ -28,6 +28,7 @@
 package nexmo
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -51,8 +52,8 @@ type sendSMSResponse struct {
 	} `json:"messages"`
 }
 
-func (provider *Provider) sendSMS(form url.Values) (*sendSMSResponse, error) {
-	req, err := http.NewRequest("POST", "https://rest.nexmo.com/sms/json", strings.NewReader(form.Encode()))
+func (provider *Provider) sendSMS(ctx context.Context, form url.Values) (*sendSMSResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://rest.nexmo.com/sms/json", strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
 	}

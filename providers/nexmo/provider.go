@@ -28,6 +28,7 @@
 package nexmo
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,7 +53,7 @@ func (provider *Provider) Type() string {
 	return "nexmo"
 }
 
-func (provider *Provider) Send(message *smsxmpp.Message) error {
+func (provider *Provider) Send(ctx context.Context, message *smsxmpp.Message) error {
 	// https://developer.nexmo.com/api/sms#send-an-sms
 	request := make(url.Values)
 	request.Set("api_key", provider.apiKey)
@@ -69,7 +70,7 @@ func (provider *Provider) Send(message *smsxmpp.Message) error {
 		return errors.New("Nexmo doesn't support media")
 	}
 
-	response, err := provider.sendSMS(request)
+	response, err := provider.sendSMS(ctx, request)
 	if err != nil {
 		return err
 	}

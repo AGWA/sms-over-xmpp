@@ -28,6 +28,7 @@
 package voipms
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -40,11 +41,11 @@ type apiResponse struct {
 	Status string `json:"status"`
 }
 
-func doRequest(form url.Values) (*apiResponse, error) {
+func doRequest(ctx context.Context, form url.Values) (*apiResponse, error) {
 	// GET https://voip.ms/api/v1/rest.php?{form}
 	// output will contain {"status":"success"} if successful
 
-	req, err := http.NewRequest("GET", "https://voip.ms/api/v1/rest.php?"+form.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://voip.ms/api/v1/rest.php?"+form.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}

@@ -28,6 +28,7 @@
 package smsxmpp
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"sync"
@@ -35,7 +36,7 @@ import (
 
 type Provider interface {
 	Type() string
-	Send(*Message) error
+	Send(context.Context, *Message) error
 	HTTPHandler() http.Handler
 }
 

@@ -344,7 +344,9 @@ func (service *Service) receiveXMPPMessage(ctx context.Context, xmppMessage *xmp
 	}
 
 	go func() {
-		err := user.provider.Send(message)
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		err := user.provider.Send(ctx, message)
 		if err != nil {
 			// TODO: if sendXMPPError fails, log the error
 			service.sendXMPPError(xmppMessage.To, xmppMessage.From, "Sending SMS failed: "+err.Error())

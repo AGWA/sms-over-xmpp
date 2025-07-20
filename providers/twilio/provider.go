@@ -28,6 +28,7 @@
 package twilio
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -52,7 +53,7 @@ func (provider *Provider) Type() string {
 	return "twilio"
 }
 
-func (provider *Provider) Send(message *smsxmpp.Message) error {
+func (provider *Provider) Send(ctx context.Context, message *smsxmpp.Message) error {
 	request := make(url.Values)
 	request.Set("To", message.To)
 	request.Set("From", message.From)
@@ -64,7 +65,7 @@ func (provider *Provider) Send(message *smsxmpp.Message) error {
 		request["MediaUrl"] = message.MediaURLs
 	}
 
-	_, err := provider.doTwilioRequest("Messages", request)
+	_, err := provider.doTwilioRequest(ctx, "Messages", request)
 	return err
 }
 
