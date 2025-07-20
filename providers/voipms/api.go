@@ -34,7 +34,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
 type apiResponse struct {
@@ -42,15 +41,13 @@ type apiResponse struct {
 }
 
 func doRequest(form url.Values) (*apiResponse, error) {
-	// POST to https://voip.ms/api/v1/rest.php
+	// GET https://voip.ms/api/v1/rest.php?{form}
 	// output will contain {"status":"success"} if successful
 
-	req, err := http.NewRequest("POST", "https://voip.ms/api/v1/rest.php", strings.NewReader(form.Encode()))
+	req, err := http.NewRequest("GET", "https://voip.ms/api/v1/rest.php?"+form.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
