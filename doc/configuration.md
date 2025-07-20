@@ -236,7 +236,7 @@ Replace:
 * `HOSTNAME:PORT` with the public hostname and port number of your sms-over-xmpp server.
 * `PROVIDER_NAME` with the name of the provider.
 
-Example webhook URL: `http://nexmo:5VKFT8pByMkO6IG6@example.com:8080/work/message`
+Example webhook URL: `http://nexmo:5VKFT8pByMkO6IG6@example.com:8080/work/inbound-sms`
 
 Note: if you have placed sms-over-xmpp behind a reverse proxy, be sure to adjust
 the URL accordingly.
