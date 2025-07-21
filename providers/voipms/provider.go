@@ -133,7 +133,7 @@ func (provider *Provider) handleSMS(w http.ResponseWriter, req *http.Request) {
 	}
 	payload := &requestDoc.Data.Payload
 	if len(payload.To) != 1 {
-		log.Printf("voipms: ignoring inbound webhook because it has %d destination phone numbers nstead of 1", len(payload.To))
+		log.Printf("voipms: ignoring inbound webhook because it has %d destination phone numbers instead of 1", len(payload.To))
 		http.Error(w, "400 Bad Request: number of destination phone numbers is not 1", 400)
 		return
 	}
