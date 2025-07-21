@@ -50,7 +50,7 @@ sure you use a version which incorporates [this commit](https://hg.prosody.im/pr
 
 ## Installing
 
-If you have the latest version of Go installed, you can run:
+If you have [Go 1.21.0 or higher](https://go.dev/dl/) installed, you can run:
 
 ```
 go install src.agwa.name/sms-over-xmpp/cmd/sms-over-xmpp@latest
@@ -63,6 +63,13 @@ sms-over-xmpp is a single statically-linked binary so using Docker or a similar 
 ## Configuring
 
 See the [Config Reference](doc/configuration.md).
+
+## Running
+
+Note that sms-over-xmpp will terminate if it loses its connection to the
+XMPP server.  You should run sms-over-xmpp from a process supervisor
+such as systemd or s6 to ensure that sms-over-xmpp is restarted if
+this happens.
 
 ## Tested Configurations
 
