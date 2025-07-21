@@ -39,7 +39,7 @@ import (
 )
 
 type Provider struct {
-	service      *smsxmpp.Service
+	service *smsxmpp.Service
 
 	apiURL       string
 	accountSID   string
@@ -77,14 +77,14 @@ func (provider *Provider) HTTPHandler() http.Handler {
 
 func (provider *Provider) handleMessage(w http.ResponseWriter, req *http.Request) {
 	if err := req.ParseForm(); err != nil {
-		http.Error(w, "400 Bad Request: Parsing form failed: " + err.Error(), 400)
+		http.Error(w, "400 Bad Request: Parsing form failed: "+err.Error(), 400)
 		return
 	}
 
 	message := smsxmpp.Message{
-		From: req.PostForm.Get("From"),
-		To: req.PostForm.Get("To"),
-		Body: req.PostForm.Get("Body"),
+		From:      req.PostForm.Get("From"),
+		To:        req.PostForm.Get("To"),
+		Body:      req.PostForm.Get("Body"),
 		MediaURLs: getMediaURLs(req.PostForm),
 	}
 	if err := provider.service.Receive(&message); err != nil {
@@ -116,22 +116,22 @@ func getMediaURLs(form url.Values) []string {
 
 func MakeProvider(service *smsxmpp.Service, config smsxmpp.ProviderConfig) (smsxmpp.Provider, error) {
 	return &Provider{
-		service: service,
-		apiURL: "https://api.twilio.com",
-		accountSID: config["account_sid"],
-		keySID: config["key_sid"],
-		keySecret: config["key_secret"],
+		service:      service,
+		apiURL:       "https://api.twilio.com",
+		accountSID:   config["account_sid"],
+		keySID:       config["key_sid"],
+		keySecret:    config["key_secret"],
 		httpPassword: config["http_password"],
 	}, nil
 }
 
 func MakeSignalwireProvider(service *smsxmpp.Service, config smsxmpp.ProviderConfig) (smsxmpp.Provider, error) {
 	return &Provider{
-		service: service,
-		apiURL: "https://" + config["domain"] + "/api/laml",
-		accountSID: config["project_id"],
-		keySID: config["project_id"],
-		keySecret: config["auth_token"],
+		service:      service,
+		apiURL:       "https://" + config["domain"] + "/api/laml",
+		accountSID:   config["project_id"],
+		keySID:       config["project_id"],
+		keySecret:    config["auth_token"],
 		httpPassword: config["http_password"],
 	}, nil
 }

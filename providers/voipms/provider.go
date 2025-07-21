@@ -28,14 +28,14 @@
 package voipms
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
-	"io"
-	"encoding/json"
 
 	"src.agwa.name/sms-over-xmpp"
 	"src.agwa.name/sms-over-xmpp/httputil"
@@ -119,8 +119,8 @@ func (provider *Provider) handleSMS(w http.ResponseWriter, req *http.Request) {
 				To []struct {
 					PhoneNumber string `json:"phone_number"`
 				} `json:"to"`
-				Text string `json:"text"`
-				Media []struct{
+				Text  string `json:"text"`
+				Media []struct {
 					URL string `json:"url"`
 				} `json:"media"`
 			} `json:"payload"`

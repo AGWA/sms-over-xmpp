@@ -30,16 +30,16 @@ package main
 import (
 	"context"
 	"flag"
+	"log"
 	"net"
 	"net/http"
-	"log"
 
 	"src.agwa.name/go-listener"
 	_ "src.agwa.name/go-listener/tls"
 	"src.agwa.name/sms-over-xmpp"
 	"src.agwa.name/sms-over-xmpp/config"
-	_ "src.agwa.name/sms-over-xmpp/providers/twilio"
 	_ "src.agwa.name/sms-over-xmpp/providers/nexmo"
+	_ "src.agwa.name/sms-over-xmpp/providers/twilio"
 	_ "src.agwa.name/sms-over-xmpp/providers/voipms"
 )
 

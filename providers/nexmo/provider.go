@@ -28,20 +28,20 @@
 package nexmo
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
-	"fmt"
-	"io"
-	"encoding/json"
 
 	"src.agwa.name/sms-over-xmpp"
 	"src.agwa.name/sms-over-xmpp/httputil"
 )
 
 type Provider struct {
-	service      *smsxmpp.Service
+	service *smsxmpp.Service
 
 	apiKey       string
 	apiSecret    string
@@ -108,7 +108,7 @@ func (provider *Provider) handleInboundSMS(w http.ResponseWriter, req *http.Requ
 
 	message := smsxmpp.Message{
 		From: "+" + inboundSMS.Msisdn,
-		To: "+" + inboundSMS.To,
+		To:   "+" + inboundSMS.To,
 		Body: inboundSMS.Text,
 	}
 	if err := provider.service.Receive(&message); err != nil {
@@ -121,9 +121,9 @@ func (provider *Provider) handleInboundSMS(w http.ResponseWriter, req *http.Requ
 
 func MakeProvider(service *smsxmpp.Service, config smsxmpp.ProviderConfig) (smsxmpp.Provider, error) {
 	return &Provider{
-		service: service,
-		apiKey: config["api_key"],
-		apiSecret: config["api_secret"],
+		service:      service,
+		apiKey:       config["api_key"],
+		apiSecret:    config["api_secret"],
 		httpPassword: config["http_password"],
 	}, nil
 }

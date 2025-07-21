@@ -2,8 +2,8 @@ package smsxmpp
 
 import (
 	"context"
-	"github.com/emersion/go-webdav/carddav"
 	"github.com/emersion/go-vcard"
+	"github.com/emersion/go-webdav/carddav"
 	"golang.org/x/sync/errgroup"
 	"src.agwa.name/go-xmpp"
 	"strings"

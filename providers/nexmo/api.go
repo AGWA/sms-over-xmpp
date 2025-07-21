@@ -30,9 +30,9 @@ package nexmo
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
-	"io"
 	"strings"
 )
 
@@ -82,16 +82,16 @@ func (provider *Provider) sendSMS(form url.Values) (*sendSMSResponse, error) {
 }
 
 var sendSMSStatuses = map[string]string{
-	"0": "Success",
-	"1": "Throttled",
-	"2": "Missing Parameters",
-	"3": "Invalid Parameters",
-	"4": "Invalid Credentials",
-	"5": "Internal Error",
-	"6": "Invalid Message",
-	"7": "Number Barred",
-	"8": "Partner Account Barred",
-	"9": "Partner Quota Violation",
+	"0":  "Success",
+	"1":  "Throttled",
+	"2":  "Missing Parameters",
+	"3":  "Invalid Parameters",
+	"4":  "Invalid Credentials",
+	"5":  "Internal Error",
+	"6":  "Invalid Message",
+	"7":  "Number Barred",
+	"8":  "Partner Account Barred",
+	"9":  "Partner Quota Violation",
 	"10": "Too Many Existing Binds",
 	"11": "Account Not Enabled For HTTP",
 	"12": "Message Too Long",
