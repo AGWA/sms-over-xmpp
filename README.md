@@ -13,7 +13,7 @@ send you an SMS, you receive an XMPP message.
 * Twilio (recommended)
 * Nexmo/Vonage
 * Signalwire
-* VoIP.ms (experimental; be prepared for bugs and please report them)
+* VoIP.ms (can only send to/receive from numbers with +1 country code)
 
 ## Features
 

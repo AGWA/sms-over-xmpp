@@ -54,12 +54,21 @@ func (provider *Provider) Type() string {
 }
 
 func (provider *Provider) Send(message *smsxmpp.Message) error {
+	from, ok := strings.CutPrefix(message.From, "+1")
+	if !ok {
+		return fmt.Errorf("voip.ms cannot send SMS from %q - only phone numbers with +1 country code are supported", message.From)
+	}
+	to, ok := strings.CutPrefix(message.To, "+1")
+	if !ok {
+		return fmt.Errorf("voip.ms cannot send SMS to %q - only phone numbers with +1 country code are supported", message.To)
+	}
+
 	request := make(url.Values)
 	request.Set("api_username", provider.apiUsername)
 	request.Set("api_password", provider.apiPassword)
 	request.Set("content_type", "json")
-	request.Set("did", strings.TrimPrefix(message.From, "+1"))
-	request.Set("dst", strings.TrimPrefix(message.To, "+1"))
+	request.Set("did", from)
+	request.Set("dst", to)
 	request.Set("message", message.Body)
 	if len(message.MediaURLs) >= 1 {
 		request.Set("media1", message.MediaURLs[0])
