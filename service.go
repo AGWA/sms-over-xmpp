@@ -521,8 +521,9 @@ func (service *Service) setRoster(ctx context.Context, userJID xmpp.Address, use
 func (service *Service) sendXMPPRosterQuery(id string, to xmpp.Address, iqType string, query xmpp.RosterQuery) error {
 	iq := &xmpp.Iq{
 		Header: xmpp.Header{
-			ID: id,
-			To: &to,
+			From: &xmpp.Address{DomainPart: service.xmppParams.Domain},
+			ID:   id,
+			To:   &to,
 		},
 		Type:        iqType,
 		RosterQuery: &query,
